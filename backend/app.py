@@ -1,8 +1,9 @@
 import dataclasses
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, CheckConstraint, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, CheckConstraint, Text, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.ext.associationproxy import association_proxy, AssociationProxy
 from typing import List, Optional
 from flask import jsonify
 
@@ -17,9 +18,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# create a class for the table
-
-
 class User(db.Model):
     __tablename__ = 'user'
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -32,6 +30,12 @@ class User(db.Model):
     # revise if back_populates is necessary
     q_sets: Mapped[List['QSet']] = relationship(back_populates='creator')
     cards: Mapped[List['Card']] = relationship(back_populates='creator')
+
+    studies: Mapped[List['Study']] = relationship(back_populates='users', secondary='user_study_association')
+    studies_association: Mapped[List['UserStudyAssociation']] = relationship(back_populates='user')
+
+    responses: Mapped[List['Response']] = relationship(back_populates='respondent')
+
 
     __table_args__ = (
         CheckConstraint(
@@ -50,7 +54,7 @@ class Study(db.Model):
     title: Mapped[str] = mapped_column(String(80), nullable=False)
     question: Mapped[str] = mapped_column(Text)
     description: Mapped[str] = mapped_column(Text)
-    # assign time when created
+
     created_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
     submit_time: Mapped[Optional[DateTime]] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -59,6 +63,9 @@ class Study(db.Model):
 
     q_set_id: Mapped[Optional[int]] = mapped_column(ForeignKey('qset.id'))
     q_set: Mapped[Optional['QSet']] = relationship(back_populates='studies')
+
+    users: Mapped[List['User']] = relationship(back_populates='studies', secondary='user_study_association')
+    users_association: Mapped[List['UserStudyAssociation']] = relationship(back_populates='study')
 
     __table_args__ = (
         db.CheckConstraint(
@@ -70,25 +77,31 @@ class Study(db.Model):
     def __repr__(self):
         return f"Study('{self.title}')"
 
+class UserStudyAssociation(db.Model):
+    __tablename__ = 'user_study_association'    
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'), primary_key=True)
+    study_id: Mapped[int] = mapped_column(ForeignKey('study.id'), primary_key=True)
+    user: Mapped['User'] = relationship(back_populates='studies_association')
+    study: Mapped['Study'] = relationship(back_populates='users_association')
+
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    __table_args__ = (
+        CheckConstraint(
+            role.in_(['owner', 'participant', 'collaborator']),
+        ),
+    )   
+
 
 class StudyRound(db.Model):
+    __tablename__ = 'study_round'
     id: Mapped[int] = mapped_column(primary_key=True)
-
     study_id: Mapped[int] = mapped_column(ForeignKey('study.id'))
     study: Mapped['Study'] = relationship(back_populates='rounds')
 
+    responses: Mapped[List['Response']] = relationship(back_populates='round')
 
-# class UserStudy(db.Model):
-#     __tablename__ = 'user_study'
-#     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-#     study_id = db.Column(db.Integer, db.ForeignKey('study.id'), primary_key=True)
-#     role = db.Column(db.String(10), nullable=False)
-#     __table_args__ = (
-#         db.CheckConstraint(
-#             role.in_(['researcher', 'participant']),
-#             name='role_check'
-#         ),
-#     )
+    def __repr__(self):
+        return f"StudyRound('{self.study_id}')"
 
 class QSet(db.Model):
     __tablename__ = 'qset'
@@ -122,31 +135,37 @@ class Card(db.Model):
         return f"Card('{self.text}')"
 
 
-class QTable(db.Model):
+class Response(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    # id = db.Column(db.Integer, primary_key=True)
-    # respondent_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    # study_id = db.Column(db.Integer, db.ForeignKey('study.id'))
-    # time_created = db.Column(db.DateTime, nullable=False)
-    # time_submitted = db.Column(db.DateTime)
-    # status = db.Column(db.String(10), nullable=False)
-    # __table_args__ = (
-    #     db.CheckConstraint(
-    #         status.in_(['in_progress', 'completed']),
-    #         name='status_check'
-    #     ),
-    # )
+    respondent_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
+    respondent: Mapped['User'] = relationship(back_populates='responses')
+
+    round_id: Mapped[int] = mapped_column(ForeignKey('study_round.id'))
+    round: Mapped['StudyRound'] = relationship(back_populates='responses')
+
+    time_submitted: Mapped[Optional[DateTime]] = mapped_column(DateTime)
+
+    positions: Mapped[List['CardPosition']] = relationship(back_populates='response')
 
     def __repr__(self):
-        return f"Qtable to Study('{self.study_id} from {self.respondent_id}')"
+        return f"Qtable to Study('{self.round_id} from {self.respondent}')"
 
-# class CardPosition(db.Model):
-#     __tablename__ = 'card_position'
-#     card_id = db.Column(db.Integer, db.ForeignKey('card.id'), primary_key=True)
-#     qTable_id = db.Column(db.Integer, db.ForeignKey('qtable.id'), primary_key=True)
-#     column = db.Column(db.Integer, nullable=False)
-#     row = db.Column(db.Integer, nullable=False)
+class CardPosition(db.Model):
+    __tablename__ = 'card_position'
+    
+    card_id: Mapped[int] = mapped_column(ForeignKey('card.id'), primary_key=True)
+    # card: Mapped['Card'] = relationship(back_populates='positions')
+    card: Mapped['Card'] = relationship()
+
+    response_id: Mapped[int] = mapped_column(ForeignKey('response.id'), primary_key=True)
+    response: Mapped['Response'] = relationship(back_populates='positions')
+
+    column: Mapped[int] = mapped_column(Integer, nullable=False)
+    row: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    def __repr__(self) -> str:
+        return f'Card position on {self.response}: [{self.column}, {self.row}]'
 
 
 with app.app_context():
@@ -169,7 +188,11 @@ with app.app_context():
                    created_time=datetime.now(),
                    submit_time=datetime.now() + timedelta(days=7),
                    status='not_started',
-                   q_set=qset1)
+                   q_set=qset1
+                   )
+    # add user as owner to the study
+    user_study_association = UserStudyAssociation(user=user1, study=study1, role='owner')
+
 
     round1 = StudyRound(study=study1)
     round2 = StudyRound(study=study1)
@@ -187,15 +210,20 @@ with app.app_context():
     db.session.add(study1)
     db.session.add(qset1)
 
+    response = Response(respondent=user1, round=round1, time_submitted=datetime.now())
+    for i in range(10):
+        card_position = CardPosition(card=Card.query.get(i+1), response=response, column=i, row=i)
+        db.session.add(card_position)
+
+
+    db.session.add(response)
+
     db.session.commit()
 
-    print(User.query.all())
-    print(Study.query.all())
-    print(QSet.query.all())
-    print(Card.query.all())
-    # get all cards in qset1
-    # print(qset1.cards)
-
+    response = Response.query.first()
+    print(response.respondent)
+    print(response.round)
+    print(response.positions)
 
 @app.route("/")
 def hello_world():
