@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.ext.associationproxy import association_proxy, AssociationProxy
 from typing import List, Optional
 from flask import jsonify
+from flask import request
 
 from datetime import datetime, timedelta
 
@@ -211,25 +212,49 @@ with app.app_context():
     db.session.add(qset1)
 
     response = Response(respondent=user1, round=round1, time_submitted=datetime.now())
-    for i in range(10):
-        card_position = CardPosition(card=Card.query.get(i+1), response=response, column=i, row=i)
-        db.session.add(card_position)
-
+    
+    CardPosition(card=Card.query.get(1), response=response, column=0, row=0)
+    CardPosition(card=Card.query.get(2), response=response, column=0, row=1)
+    CardPosition(card=Card.query.get(3), response=response, column=1, row=0)
+    CardPosition(card=Card.query.get(4), response=response, column=1, row=1)
+    CardPosition(card=Card.query.get(5), response=response, column=2, row=0)
+    CardPosition(card=Card.query.get(6), response=response, column=2, row=1)
+    CardPosition(card=Card.query.get(7), response=response, column=2, row=)
 
     db.session.add(response)
 
     db.session.commit()
 
-    response = Response.query.first()
-    print(response.respondent)
-    print(response.round)
-    print(response.positions)
+    # order by column then by row
+    
+    # cards = CardPosition.query.filter_by(response_id=response.id).order_by(CardPosition.column, CardPosition.row).all()
+    cards = CardPosition.query.filter_by(response_id=response.id).all()
+    print(cards)
+
 
 @app.route("/")
 def hello_world():
 
     return "Hello, World!"
 
+# post reqeust to create a study
+app.route('/studies', methods=['GET'])
+def create_study():
+    # from request json body
+    data = request.get_json()
+    new_study = Study(title=data['title'],
+                        question=data['question'],
+                        description=data['description'],
+                        created_time=datetime.now(),
+                        submit_time=datetime.now() + timedelta(days=7),
+                        status='not_started',
+                        q_set_id=data['q_set_id']
+                        )
+    db.session.add(new_study)
+    db.session.commit()
+    return jsonify({'id': new_study.id, 'title': new_study.title, 'question': new_study.question, 
+                     'description': new_study.description, 'created_time': new_study.created_time,
+                     'submit_time': new_study.submit_time, 'status': new_study.status, 'q_set_id': new_study.q_set_id})
 
 @app.route('/studies', methods=['GET'])
 def get_studies():
@@ -239,6 +264,37 @@ def get_studies():
                      'submit_time': study.submit_time, 'status': study.status, 'q_set_id': study.q_set_id} 
                      for study in studies]
     return jsonify(studies_list)
+
+
+@app.route('/studies/<int:id>', methods=['GET'])
+def get_study(id):
+    study = Study.query.get(id)
+    return jsonify({'id': study.id, 'title': study.title, 'question': study.question, 
+                     'description': study.description, 'created_time': study.created_time,
+                     'submit_time': study.submit_time, 'status': study.status, 'q_set_id': study.q_set_id})
+
+@app.route('/studies/<int:id>', methods=['PUT'])
+def update_study(id):
+    study = Study.query.get(id)
+    data = request.get_json()
+    study.title = data['title']
+    study.question = data['question']
+    study.description = data['description']
+    study.created_time = data['created_time']
+    study.submit_time = data['submit_time']
+    study.status = data['status']
+    study.q_set_id = data['q_set_id']
+    db.session.commit()
+    return jsonify({'id': study.id, 'title': study.title, 'question': study.question, 
+                     'description': study.description, 'created_time': study.created_time,
+                     'submit_time': study.submit_time, 'status': study.status, 'q_set_id': study.q_set_id})
+
+@app.route('/studies/<int:id>', methods=['DELETE'])
+def delete_study(id):
+    study = Study.query.get(id)
+    db.session.delete(study)
+    db.session.commit()
+    return "Study deleted"
 
 
 if __name__ == '__main__':
