@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "axios": "^1.6.7",
+    "d3": "^7.8.5",
     "material-design-icons-iconfont": "^6.7.0",
     "pinia": "^2.1.7",
     "plotly.js-dist": "^2.29.0",

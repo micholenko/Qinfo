@@ -1,9 +1,22 @@
 <script setup>
-import { onMounted } from 'vue';
-import { ref } from 'vue';
-import Plotly from 'plotly.js-dist';
+import { onMounted } from 'vue'
+import { ref } from 'vue'
+import Plotly from 'plotly.js-dist'
+import Qtable from '@/components/Qtable.vue'
+import { useRoute } from 'vue-router';
 
-const studyData = ref(null);
+const studyData = ref({'rounds': {'count': 0}})
+const tab = ref(null)
+const selectedUser = ref(null)
+const selectedRound = ref(null)
+const responses = ref(null)
+const selectedResponse = ref(null)
+const cards = ref(null)
+const distribution = ref([])
+const loading = ref(true)
+const route = useRoute()
+const studyId = route.params.id
+
 // const plotlyChart = ref(null);
 
 // const plotChart = () => {
@@ -26,29 +39,79 @@ const studyData = ref(null);
 //   Plotly.newPlot(plotlyChart.value, data, layout, config);
 // };
 
+const fetchRound = async (round) => {
+  let ret = await fetch(`http://localhost:5000/responses?round=${round}`);
+  const data = await ret.json();
+  responses.value = data;
+}
+
+const fetchResponse= async (response_id) => {
+  let ret = await fetch(`http://localhost:5000/responses/${response_id}/cards`);
+  const data = await ret.json();
+  cards.value = data;
+}
+
 const fetchData = async () => {
-  // const id = $route.params.id;
-  // const response = await fetch(`http://127.0.0.1:5000/study/${id}`);
-  // const data = await response.json();
-  // studyData.value = data;
-};
+  let ret = await fetch(`http://localhost:5000/studies/${studyId}`);
+  const data = await ret.json();
+  studyData.value = data;
+  selectedRound.value = data.rounds.ids[0];
+  distribution.value = data.distribution;
+
+  // add param to request
+  await fetchRound(selectedRound.value);
+  await fetchResponse(responses.value[0].id);
+  loading.value = false;
+}
 
 onMounted(() => {
-  fetchData();
+  fetchData()
   // plotChart();
-});
+})
 </script>
 
 <template>
   <v-container class="d-flex justify-center mt-16">
     <v-sheet elevation="4" class="rounded-lg w-75">
-      <v-container>
-        <h1>Study {{ $route.params.id }}</h1>
-        <v-divider></v-divider>
+      <!-- render if not loading -->
+      <v-container v-if="!loading">
+        <!-- <h1>Study {{ $route.params.id }}</h1>
+        <v-divider></v-divider> -->
+        <v-tabs v-model="tab" bg-color="secondary">
+          <!-- studyData.rounds is a number -->
+          <v-tab v-for="round in studyData.rounds.count" :key="round" @click="selectedRound = round">
+          Round {{ round }}
+          </v-tab>
+        </v-tabs>
+        <v-window v-model="tab">
+          <v-window-item value="one">
+              <v-menu>
+                <template v-slot:activator="{ props }">
+                  <v-btn color="primary" v-bind="props">
+                    {{ selectedUser ? selectedUser : 'Select User' }}
+                  </v-btn>
+                </template>
+                <v-list>
+                  <v-list-item v-for="response in responses" :key="response.respondent_id" @click="selectedResponse = response.respondent_id">
+                    <v-list-item-title>{{ response.respondent_id }}</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+                
+
+              </v-menu>
+              <v-container>
+                <Qtable :distribution="distribution"></Qtable>
+              </v-container>
+          </v-window-item>
+
+          <v-window-item value="two"> Two </v-window-item>
+
+          <v-window-item value="three"> Three </v-window-item>
+        </v-window>
         <!-- plotly heatmap -->
         <v-container>
           <div ref="plotlyChart"></div>
-        </v-container>  
+        </v-container>
       </v-container>
     </v-sheet>
   </v-container>
