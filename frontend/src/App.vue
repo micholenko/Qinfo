@@ -1,6 +1,5 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
-
 </script>
 
 <template>
@@ -8,12 +7,14 @@ import { RouterLink, RouterView } from 'vue-router'
   <v-app>
     <v-layout>
       <v-app-bar rounded>
-        <v-app-bar-title>Qinfo</v-app-bar-title>
-        <v-spacer></v-spacer>
-        <router-link to="/">Home</router-link>
+        <v-app-bar-title>
+          <router-link 
+            style="text-decoration: none; color: black;"
+          to="/"> Qinfo analysis </router-link>
+        </v-app-bar-title>
       </v-app-bar>
-      <v-main class='bg-blue-grey-lighten-5'>
-        <router-view/>
+      <v-main class="bg-blue-grey-lighten-5">
+        <router-view />
       </v-main>
     </v-layout>
 
