@@ -18,43 +18,6 @@ const headers = [
   { title: 'Status', key: 'status' }
 ]
 
-const studies = [
-  {
-    id: 1,
-    title: 'Study 1',
-    created: '2021-01-01',
-    submit_date: '2021-01-15',
-    status: 'Pending'
-  },
-  {
-    id: 2,
-    title: 'Study 2',
-    created: '2021-01-02',
-    submit_date: '2021-01-16',
-    status: 'Approved'
-  },
-  {
-    id: 3,
-    title: 'Study 3',
-    created: '2021-01-03',
-    submit_date: '2021-01-17',
-    status: 'Pending'
-  },
-  {
-    id: 4,
-    title: 'Study 4',
-    created: '2021-01-04',
-    submit_date: '2021-01-18',
-    status: 'Approved'
-  },
-  {
-    id: 5,
-    title: 'Study 5',
-    created: '2021-01-05',
-    submit_date: '2021-01-19',
-    status: 'Pending'
-  }
-]
 const sortBy = [
   {
     key: 'created',

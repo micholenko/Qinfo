@@ -3,7 +3,11 @@ import { onMounted } from 'vue'
 import { ref } from 'vue'
 import Plotly from 'plotly.js-dist'
 import Qtable from '@/components/Qtable.vue'
+import CorrelationMatrix from '@/components/CorrelationMatrix.vue'
+import Factors from '@/components/Factors.vue'
+
 import { useRoute } from 'vue-router'
+
 
 const studyData = ref({ rounds: { count: 0 } })
 const tab = ref(null)
@@ -18,7 +22,6 @@ const route = useRoute()
 const studyId = route.params.id
 const qSet = ref(null)
 const cardsFinal = ref(null)
-
 const plotlyChart = ref(null)
 
 const plotChart = () => {
@@ -45,6 +48,7 @@ const fetchRound = async (round) => {
   let ret = await fetch(`http://localhost:5000/responses?round=${round}`)
   const data = await ret.json()
   responses.value = data
+  console.log('responses:', responses.value)
 }
 
 const fetchResponse = async (response_id) => {
@@ -106,7 +110,7 @@ onMounted(() => {
         </p>
         <v-divider></v-divider>
 
-        <v-expansion-panels>
+        <v-expansion-panels multiple>
           <v-expansion-panel>
             <v-expansion-panel-title> Participants </v-expansion-panel-title>
             <v-expansion-panel-text>
@@ -134,7 +138,7 @@ onMounted(() => {
                         :key="response.respondent_id"
                         @click="updateResponse(response.id)"
                       >
-                        <v-list-item-title>{{ response.respondent_id }}</v-list-item-title>
+                        <v-list-item-title>{{ response.user }}</v-list-item-title>
                       </v-list-item>
                     </v-list>
                   </v-menu>
@@ -153,7 +157,22 @@ onMounted(() => {
             <v-expansion-panel-title> Correlation matrix </v-expansion-panel-title>
             <v-expansion-panel-text>
               <v-container>
-                <div ref="plotlyChart"></div>
+                <CorrelationMatrix />
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          <v-expansion-panel>
+            <v-expansion-panel-title> Factors </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-container>
+                <Factors />
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          <v-expansion-panel>
+            <v-expansion-panel-title> Composite QSorts </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-container>
               </v-container>
             </v-expansion-panel-text>
           </v-expansion-panel>
