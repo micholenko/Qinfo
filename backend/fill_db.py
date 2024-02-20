@@ -9,9 +9,9 @@ def fill_db():
     with app.app_context():
         db.drop_all()
         db.create_all()
-        user1 = User(name='user1', email='test1@example.com',
+        user1 = User(name='john', email='john@example.com',
                      role='participant')
-        user2 = User(name='user2', email='test2@example.com',
+        user2 = User(name='james', email='james@example.com',
                      role='participant')
 
         # Create studies
@@ -30,30 +30,47 @@ def fill_db():
 
         round3 = StudyRound(study=study2)
 
-        # add 4 responses to round1
-        response1 = Response(respondent=user1, round=round1,
-                             time_submitted=datetime.now())
-        response2 = Response(respondent=user2, round=round1,
-                             time_submitted=datetime.now())
-        
         response3 = Response(respondent=user1, round=round3,
                              time_submitted=datetime.now())
 
         # add 10 cards
-        for i in range(10):
-            card = Card(text=f'This is card {i}', creator=user1, qSet=qset1)
+        colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'black', 'white', 'pink']
+        for i in range(9):
+            card = Card(text=colors[i], creator=user1, qSet=qset1)
             db.session.add(card)
 
         # add all cards to responses
+        
+        positions = [
+            [0,0],
+            [1,0],
+            [1,1],
+            [2,0],
+            [2,1],
+            [2,2],
+            [3,0],
+            [3,1],
+            [4,0],
+        ]
 
+
+        position_offset = 0
         for i in range(10):
-            card = db.session.get(Card, i+1)
-            position1 = CardPosition(
-                card=card, response=response1, column=i, row=0)
-            position2 = CardPosition(
-                card=card, response=response2, column=10-i, row=0)
-            db.session.add(position1)
-            db.session.add(position2)
+            user = User(name='user'+str(i), email='test'+str(i)+'@example.com',
+                        role='participant')
+            db.session.add(user)
+            
+            response = Response(respondent=user, round=round1,
+                             time_submitted=datetime.now())
+            
+            db.session.add(response)
+            for j in range(9):
+                card = db.session.get(Card, j+1)
+                index = (j + position_offset) % 9
+                position = CardPosition(
+                    card=card, response=response, column=positions[index][0], row=positions[index][1])
+                db.session.add(position)
+            position_offset += 1
 
         # db session add all users and studies
 
@@ -64,11 +81,10 @@ def fill_db():
         db.session.add(round1)
         db.session.add(round2)
         db.session.add(qset1)
-        db.session.add(response1)
-        db.session.add(response2)
         db.session.add(response3)
         db.session.commit()
 
+        # get all cards in qset1 join with Cards table
 
 if __name__ == "__main__":
     fill_db()

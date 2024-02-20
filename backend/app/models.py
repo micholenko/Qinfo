@@ -6,7 +6,8 @@ from typing import List, Optional
 from sqlalchemy import UniqueConstraint
 from sqlalchemy import CheckConstraint
 from app import db
-
+from sqlalchemy.ext.hybrid import hybrid_property
+import json
 
 class User(db.Model):
     __tablename__ = 'user'
@@ -46,6 +47,7 @@ class Study(db.Model):
     description: Mapped[str] = mapped_column(Text)
     # store array of integers in mysql
     distribution: Mapped[List[int]] = mapped_column(String(120))
+
 
     created_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
     submit_time: Mapped[Optional[DateTime]] = mapped_column(DateTime)
@@ -139,6 +141,8 @@ class Response(db.Model):
     time_submitted: Mapped[Optional[DateTime]] = mapped_column(DateTime)
 
     positions: Mapped[List['CardPosition']] = relationship(back_populates='response')
+
+    __table_args__ = (UniqueConstraint('respondent_id', 'round_id', name='one_response_per_round'),)
 
     def __repr__(self):
         return f"Qtable to Study('{self.round_id} from {self.respondent}')"

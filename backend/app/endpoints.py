@@ -1,9 +1,16 @@
 from app import app, db
-from app.models import Study, CardPosition, Response, Card
+from app.models import Study, CardPosition, Response, Card, QSet, User
 from flask import request, jsonify
 from datetime import datetime, timedelta
 import sys
 import json
+import pandas as pd
+import plotly.graph_objects as go
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+
+from app.helpers import get_card_matrix
 
 
 @app.route('/', methods=['GET'])
@@ -34,7 +41,8 @@ def get_studies():
     studies = Study.query.all()
     studies_list = [{'id': study.id, 'title': study.title, 'question': study.question, 
                      'description': study.description, 'created_time': study.created_time,
-                     'submit_time': study.submit_time, 'status': study.status, 'q_set_id': study.q_set_id} 
+                     'submit_time': study.submit_time, 'status': study.status, 'q_set_id': study.q_set_id
+                     }
                      for study in studies]
     return jsonify(studies_list)
 
@@ -46,7 +54,8 @@ def get_study(id):
                      'description': study.description, 'created_time': study.created_time,
                      'submit_time': study.submit_time, 'status': study.status, 'q_set_id': study.q_set_id,
                      'rounds': {'count': len(study.rounds), 'ids': [round.id for round in study.rounds]},
-                     'distribution': json.loads(study.distribution) if study.distribution else None
+                     'distribution': json.loads(study.distribution) if study.distribution else None,
+
                      })
 
 @app.route('/studies/<int:id>', methods=['PUT'])
@@ -72,6 +81,14 @@ def delete_study(id):
     db.session.commit()
     return "Study deleted"
 
+@app.route('/qsets/<int:id>', methods=['GET'])
+def get_qset(id):
+    qset = db.session.get(QSet, id)
+    return jsonify({'id': qset.id, 'title': qset.title, 'description': qset.description, 
+                     'creator_id': qset.creator_id, 
+                     'cards_count': len(qset.cards),
+                     'cards': [{'id': card.id, 'text': card.text} for card in qset.cards]})
+
 
 @app.route('/responses', methods=['POST'])
 def add_response():
@@ -87,6 +104,7 @@ def add_response():
 @app.route('/responses', methods=['GET'])
 def get_responses():
     round_id = request.args.get('round')
+
     if round_id:
         responses = Response.query.filter_by(round_id=round_id).all()
     else:
@@ -94,7 +112,11 @@ def get_responses():
 
     print(responses)
     responses_list = [{'id': response.id, 'respondent_id': response.respondent_id, 
-                     'round_id': response.round_id, 'time_submitted': response.time_submitted} 
+                     'round_id': response.round_id, 'time_submitted': response.time_submitted,
+                    #  join maybe better
+                     'user': db.session.get(User, response.respondent_id).name
+                     
+                     } 
                      for response in responses]
     return jsonify(responses_list)
 
@@ -123,3 +145,62 @@ def get_cards(id):
     # group concat???
     
     return jsonify(cards_return)
+
+
+@app.route('/rounds/<int:id>/matrix', methods=['GET'])
+def get_matrix(id):
+    data = get_card_matrix(id)
+
+    # print all users starting with "user"
+    users = User.query.filter(User.name.like('user%')).all()
+    df = pd.DataFrame(data, columns=[user.name for user in users])
+    matrix = df.corr(method='pearson')    
+
+    fig = go.Figure(data=go.Heatmap(
+                z=matrix,
+                x=list(matrix.columns),
+                y=list(matrix.index),
+                colorscale='Viridis',
+                zmin=-1, zmax=1))
+
+    annotations = []
+    for i, row in enumerate(matrix.values):
+        for j, value in enumerate(row):
+            annotations.append(go.layout.Annotation(text=str(value.round(2)), x=matrix.columns[j], y=matrix.index[i], showarrow=False))
+
+    fig.update_layout(
+        annotations=annotations,
+        xaxis=dict(side="top")
+        )
+    fig.update_yaxes(autorange="reversed")
+    # fig.show()
+    return fig.to_json()
+
+@app.route('/rounds/<int:id>/factors', methods=['GET'])
+def get_factors(id):
+    data = get_card_matrix(id)
+    users = User.query.filter(User.name.like('user%')).all()
+
+    scaler = StandardScaler()
+    standardized = scaler.fit_transform(data)
+    pca = PCA(n_components=5)
+    pca.fit_transform(standardized)
+
+    loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+    # numpy only 4 decimals on loadings
+    loadings = np.round(loadings, 4)
+    # append user names to each row
+    loadings = np.column_stack((np.array([user.name for user in users]), loadings))
+    print(loadings)
+
+    explained_variance = pca.explained_variance_ratio_
+    eigenvalues = pca.explained_variance_
+
+    # numpy join 2 rows
+    eigen = np.vstack((explained_variance, eigenvalues))
+    eigen = np.round(eigen, 4)
+    eigen = np.column_stack((['explained_variance', 'eigenvalues'], eigen))
+
+    ret = {'loadings': loadings.tolist(), 'eigen': eigen.tolist()}
+
+    return ret
