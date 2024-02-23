@@ -1,5 +1,5 @@
 from app import app, db
-from app.models import Study, CardPosition, Response, Card, QSet, User
+from app.models import Study, CardPosition, Response, Card, QSet, User, StudyRound
 from flask import request, jsonify
 from datetime import datetime, timedelta
 import sys
@@ -9,6 +9,8 @@ import plotly.graph_objects as go
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+import plotly.express as px
+from factor_analyzer import FactorAnalyzer
 
 from app.helpers import get_card_matrix
 
@@ -181,26 +183,131 @@ def get_factors(id):
     data = get_card_matrix(id)
     users = User.query.filter(User.name.like('user%')).all()
 
-    scaler = StandardScaler()
-    standardized = scaler.fit_transform(data)
-    pca = PCA(n_components=5)
-    pca.fit_transform(standardized)
+    data=np.array(data)
 
-    loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
-    # numpy only 4 decimals on loadings
-    loadings = np.round(loadings, 4)
-    # append user names to each row
-    loadings = np.column_stack((np.array([user.name for user in users]), loadings))
-    print(loadings)
+    X = np.array(data)
+    standardized_matrix = (data - np.mean(data, axis=0)) / np.std(X, axis=0)
 
-    explained_variance = pca.explained_variance_ratio_
-    eigenvalues = pca.explained_variance_
+    # Step 4: Correlation Matrix
+    correlation_matrix = np.corrcoef(standardized_matrix, rowvar=False)
+    print('corr')
+    print(correlation_matrix.round(2))
 
-    # numpy join 2 rows
-    eigen = np.vstack((explained_variance, eigenvalues))
+    # Step 5: Eigenvalue Decomposition
+    eigenvalues, eigenvectors = np.linalg.eig(correlation_matrix)
+
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    sorted_eigenvalues = eigenvalues[sorted_indices]
+    sorted_eigenvectors = eigenvectors[:, sorted_indices]
+    print('eigenvalues')
+    print(np.round(sorted_eigenvalues, 4))
+
+    num_components = 5
+
+    # Selecting the top 'num_components' eigenvectors
+    selected_eigenvectors = sorted_eigenvectors[:, :num_components]
+
+    # Calculate factor loadings
+    factor_loadings = selected_eigenvectors * np.sqrt(sorted_eigenvalues[:num_components])
+
+    # Create a factor loadings table
+    factor_loadings_table = np.column_stack((np.arange(1, X.shape[1] + 1), factor_loadings))
+    print('loadings')
+    print(np.round(factor_loadings_table, 4))
+
+    explained_variance = sorted_eigenvalues / sum(sorted_eigenvalues)
+    print('explained variance')
+    print(np.round(explained_variance, 4))
+
+    eigen = np.vstack((eigenvalues, explained_variance))
     eigen = np.round(eigen, 4)
-    eigen = np.column_stack((['explained_variance', 'eigenvalues'], eigen))
+    eigen = np.column_stack((['eigenvalues', 'explained_variance'], eigen))
 
-    ret = {'loadings': loadings.tolist(), 'eigen': eigen.tolist()}
+    
+    fig = px.line(x=[i for i in range(1, len(sorted_eigenvalues) + 1)], 
+                  y=sorted_eigenvalues, title='Scree Plot', markers=True)
+    
+    fig_json = json.loads(fig.to_json())
+
+    ret = {'loadings': np.round(factor_loadings_table, 2).tolist(), 'eigen': eigen.tolist(), 'scree': fig_json}
+
+    
 
     return ret
+
+
+
+@app.route('/rounds/<int:id>/rotated_factors', methods=['GET'])
+def get_rotated_factors(id):
+    pass
+    # rotate with varimax
+    # varimax = FactorAnalyzer(rotation='varimax')
+    # varimax.fit(data)
+
+
+@app.route('/rounds/<int:id>/composite')
+def get_composite_qsorts(id):
+
+# im lazy 
+    data = get_card_matrix(id)
+    users = User.query.filter(User.name.like('user%')).all()
+
+    data=np.array(data)
+
+    X = np.array(data)
+    standardized_matrix = (data - np.mean(data, axis=0)) / np.std(X, axis=0)
+
+    # Step 4: Correlation Matrix
+    correlation_matrix = np.corrcoef(standardized_matrix, rowvar=False)
+    print('corr')
+    print(correlation_matrix.round(2))
+
+    # Step 5: Eigenvalue Decomposition
+    eigenvalues, eigenvectors = np.linalg.eig(correlation_matrix)
+
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    sorted_eigenvalues = eigenvalues[sorted_indices]
+    sorted_eigenvectors = eigenvectors[:, sorted_indices]
+    num_components = 5
+
+    # Selecting the top 'num_components' eigenvectors
+    selected_eigenvectors = sorted_eigenvectors[:, :num_components]
+
+
+#  end of im lazy
+    factor_scores = np.dot(standardized_matrix, selected_eigenvectors)
+    # Display factor scores
+    print("Factor Scores:")
+    print(factor_scores)
+
+    # get distribution from study 
+    distribution = json.loads(db.session.get(StudyRound, id).study.distribution)
+    cumul_distribution = np.cumsum(distribution)
+    print(distribution)
+    print(cumul_distribution)
+    cumul_distribution = np.subtract(cumul_distribution, 1)
+    print(cumul_distribution)
+    # get cards
+    cards = Card.query.filter_by(qSet_id=1).all()
+    print(cards)
+
+    q_sorts = np.argsort(-factor_scores, axis=0)
+    q_sorts = q_sorts[::-1].T
+
+
+    data = []
+    for i, q_sort in enumerate(q_sorts):
+        qsort = {
+            'id': i,
+            'cards': []
+        }
+        sort = []
+        for count, start_index in zip(distribution, cumul_distribution):
+            # append cards in range
+            selected = [cards[i].id for i in q_sort[int(start_index):int(start_index + count)]]
+            print(selected)
+            sort.append(selected)
+        qsort['cards'] = sort
+        data.append(qsort)
+
+    return jsonify(data)
