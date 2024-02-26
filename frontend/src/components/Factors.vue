@@ -1,9 +1,11 @@
 <script setup>
 import { ref } from 'vue'
 import { onMounted } from 'vue'
+import plotly from 'plotly.js-dist'
 
 const factors = ref([])
 const eigen = ref([])
+const scree = ref({})
 const headers = [
   {title: 'user', key:'0'},
   {title: 'Factor 1', key:'1'},
@@ -19,6 +21,8 @@ const fetchFactors = async (round_id) => {
   const data = await response.json()
   factors.value = data.loadings
   eigen.value = data.eigen
+  scree.value = data.scree
+  plotly.newPlot('scree', scree.value)
 }
 
 onMounted(() => {
@@ -30,16 +34,23 @@ onMounted(() => {
 </script>
 
 <template>
+  <v-container>
+    <div class="text-h6">
+      Factors are the opinions that occur together.
+    </div>
+    
     <v-data-table
-      :headers="headers"
-      :items="factors"
-      :items-per-page="20"
-      class="elevation-1"
+    :headers="headers"
+    :items="factors"
+    :items-per-page="20"
+    class="elevation-1"
     />
     <v-data-table
-      :headers="headers"
-      :items="eigen"
-      :items-per-page="20"
-      class="elevation-1"
+    :headers="headers"
+    :items="eigen"
+    :items-per-page="20"
+    class="elevation-1"
     />
-</template>
+    <div id="scree"></div>
+  </v-container>
+  </template>

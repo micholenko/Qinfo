@@ -3,19 +3,10 @@ import { onMounted } from 'vue';
 import * as d3 from 'd3';
 import { defineProps } from 'vue';
 import {watch} from 'vue';
-import { ref } from 'vue';
-import { W } from 'plotly.js-dist';
 
-const props = defineProps(['distribution', 'cardsFinal']);
-const distribution = ref(props.distribution)
+const props = defineProps(['distribution', 'qsort', 'id']);
 
-let cardIndex = 0;
-const getCardText = () => {
-  const text = props.cardsFinal[cardIndex].text;
-  console.log('cardIndex', cardIndex, text)
-  cardIndex++;
-  return text;
-}
+console.log('in Qtable', props)
 
 
 // Assume qTable is a 2D array representing your Q-table
@@ -24,21 +15,21 @@ const height = 500;
 const width = 800;
 
 const drawQTable = () => {
-  let svg = d3.select("#q-table").append("svg")
+  let svg = d3.select("#" + props.id).append("svg")
   .attr("width", width)
     .attr("height", height);
     
     
-    let xScale = d3.scaleBand().domain(d3.range(distribution.value.length)).range([0, width]);
-    let yScale = d3.scaleLinear().domain([0, d3.max(distribution.value)]).range([0, height]);
+    let xScale = d3.scaleBand().domain(d3.range(props.distribution.length)).range([0, width]);
+    let yScale = d3.scaleLinear().domain([0, d3.max(props.distribution)]).range([0, height]);
     
 
     let columns = svg.selectAll('g')
-    .data(distribution.value)
+    .data(props.distribution)
     .enter()
     .append('g')
     .attr('transform', (d, i) => `translate(${xScale(i)}, 0)`)
-    .attr("fill", (d, i) => d3.interpolateBlues(i / distribution.value.length))
+    .attr("fill", (d, i) => d3.interpolateBlues(i / props.distribution.length))
     .attr("stroke", "black")
     .attr("stroke-width", 1)
 
@@ -52,30 +43,25 @@ const drawQTable = () => {
     .attr('height', yScale(1))
 
     columns.selectAll('text')
-    .data(d => d3.range(d))
+    .data((d, columnIndex) => d3.range(d).map((_, rowIndex) => ({ columnIndex, rowIndex })))
     .enter()
     .append('text')
     .attr('x', xScale.bandwidth() / 2)
     .attr('y', (d, i) => height - yScale(i) - yScale(1) / 2)
     .attr('text-anchor', 'middle')
-    .attr('alignment-baseline', 'middle')
-    .text((d, i) => getCardText());
+    .text(d => props.qsort[d.columnIndex][d.rowIndex])
   };
 onMounted(drawQTable)
 // watch(distribution, drawQTable)
-watch(()=>props.cardsFinal, (newVal, oldVal) => {
-  console.log('cardsFinal changed', newVal, oldVal)
-  cardIndex = 0;
-  d3.select("#q-table").selectAll('svg').remove()
-  drawQTable()
+watch(()=>props.qsort, (newVal, oldVal) => {
+  console.log('newVal', newVal)
+  console.log('oldVal', oldVal)
 
+  d3.select("#" + props.id).selectAll('svg').remove()
+  drawQTable()
 })
 </script>
 
 <template>
-  <div id="q-table"></div>
+  <div :id="props.id"></div>
 </template>
-
-<script>
-  
-</script>

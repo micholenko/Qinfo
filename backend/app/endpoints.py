@@ -138,14 +138,16 @@ def add_cards(id):
 
 @app.route('/responses/<int:id>/cards', methods=['GET'])
 def get_cards(id):
-    # ordering is implicit
-    print(id)
     cards = CardPosition.query.filter_by(response_id=id).order_by(CardPosition.column, CardPosition.row).all()
-    print(cards)
-    response = db.session.get(Response, id)
-    cards_return = [{'id': card.card_id, 'column': card.column, 'row': card.row} for card in cards]
-    # group concat???
-    
+    distribution = json.loads(db.session.get(StudyRound, db.session.get(Response, id).round_id).study.distribution)
+    cumul_distribution = np.cumsum(distribution)
+    # prepend 0 to cumul_distribution
+    cumul_distribution = np.insert(cumul_distribution, 0, 0)
+    cards_return = []
+    for count, start_index in zip(distribution, cumul_distribution):
+        # append cards in range
+        selected = [card.card_id for card in cards[int(start_index):int(start_index + count)]]
+        cards_return.append(selected)
     return jsonify(cards_return)
 
 
@@ -219,13 +221,13 @@ def get_factors(id):
     print('explained variance')
     print(np.round(explained_variance, 4))
 
-    eigen = np.vstack((eigenvalues, explained_variance))
+    eigen = np.vstack((sorted_eigenvalues, explained_variance))
     eigen = np.round(eigen, 4)
     eigen = np.column_stack((['eigenvalues', 'explained_variance'], eigen))
 
     
-    fig = px.line(x=[i for i in range(1, len(sorted_eigenvalues) + 1)], 
-                  y=sorted_eigenvalues, title='Scree Plot', markers=True)
+    fig = px.line(x=[i for i in range(1, len(sorted_eigenvalues[:num_components]) + 1)], 
+                  y=sorted_eigenvalues[:num_components], title='Scree Plot', markers=True)
     
     fig_json = json.loads(fig.to_json())
 
@@ -283,9 +285,8 @@ def get_composite_qsorts(id):
     # get distribution from study 
     distribution = json.loads(db.session.get(StudyRound, id).study.distribution)
     cumul_distribution = np.cumsum(distribution)
-    print(distribution)
-    print(cumul_distribution)
-    cumul_distribution = np.subtract(cumul_distribution, 1)
+    cumul_distribution = np.insert(cumul_distribution, 0, 0)
+
     print(cumul_distribution)
     # get cards
     cards = Card.query.filter_by(qSet_id=1).all()

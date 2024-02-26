@@ -93,9 +93,7 @@ const values = [
 const fetchMatrix = async (round_id) => {
   const response = await fetch('http://localhost:5000/rounds/' + round_id + '/matrix')
   const data = await response.json()
-
-  graph = plotly.newPlot('matrix', data)
-  return graph
+  return data
 }
 
 onMounted(async () => {
@@ -121,7 +119,9 @@ onMounted(async () => {
   >
     <template #bottom></template>
   </v-data-table> -->
-
+  <div class="text-h6">
+    Correlation Matrix shows the correlation between answers of participants.
+  </div>
   <div id="matrix"></div>
 </template>
 
