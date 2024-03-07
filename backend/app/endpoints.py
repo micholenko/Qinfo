@@ -2,17 +2,15 @@ from app import app, db
 from app.models import Study, CardPosition, Response, Card, QSet, User, StudyRound
 from flask import request, jsonify
 from datetime import datetime, timedelta
-import sys
 import json
 import pandas as pd
 import plotly.graph_objects as go
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 import numpy as np
 import plotly.express as px
 from factor_analyzer import FactorAnalyzer
 
-from app.helpers import get_card_matrix
+from app.helpers import get_card_matrix, get_user_rounds
+from factor_analyzer import FactorAnalyzer, Rotator
 
 
 @app.route('/', methods=['GET'])
@@ -92,6 +90,75 @@ def get_qset(id):
                      'cards': [{'id': card.id, 'text': card.text} for card in qset.cards]})
 
 
+@app.route('/studies/<int:id>/user_correlations', methods=['GET'])
+def get_user_correlation(id):
+    users = db.session.query(Study).filter_by(id=id).first().users
+    all_correlations = []
+    for user in users:
+        data = get_user_rounds(user.id)
+        correlation_matrix = np.corrcoef(data, rowvar=False)
+        correlations = []
+        for i in range(correlation_matrix.shape[0]):
+            for j in range(i + 1, correlation_matrix.shape[1]):
+                correlations.append(correlation_matrix[i, j])
+                print("Round ", i, " and Round ", j, " are correlated", [correlation_matrix[i, j]])
+        all_correlations.append(correlations)
+
+    # Create a DataFrame with users and their correlations
+    df = pd.DataFrame({
+        'user': [user.name for user in users for _ in range(len(all_correlations[0]))],
+        'correlation': [corr for correlations in all_correlations for corr in correlations]
+    })
+
+    df['count'] = df.groupby(['user', 'correlation'])['user'].transform('count')
+    print(df)
+
+    # Create the scatter plot
+    fig = px.scatter(df, x='user', y='correlation', size='count', color='correlation',
+                     color_continuous_scale=["red", "grey", "green"], range_color=[-1,1],
+                     title='User Correlations')
+    
+    fig.update_yaxes(range=[-1.2, 1.2])
+    fig.update_layout(coloraxis_showscale=False)
+
+    scatter = json.loads(fig.to_json())
+
+    fig = px.histogram(df, x='correlation', nbins=20, title='Distribution of Correlations')
+    fig.update_xaxes(range=[-1.2, 1.2], nticks=20)
+    
+    fig.update_xaxes(
+        tickvals=[i / 10.0 for i in range(-10, 11)],
+        ticktext=[str(i / 10.0) for i in range(-10, 11)]
+    )
+    fig.update_layout(bargap=0.1)
+    # Show the plot
+    histogram = json.loads(fig.to_json())
+
+    return jsonify({'scatter': scatter, 'histogram': histogram})
+
+@app.route('/studies/<int:id>/cards_stats', methods=['GET'])
+def get_card_stats(id):
+    rounds = db.session.query(Study).filter_by(id=id).first().rounds
+    data = []
+    for i, round in enumerate(rounds):
+        round = get_card_matrix(round.id)
+        df_round = pd.DataFrame(round)
+        df_round = df_round.stack().reset_index()
+        df_round = df_round.drop(columns='level_1')
+
+        df_round.columns = ['card', 'position']
+
+        df_round['round'] = i + 1
+        df_round['card'] = df_round['card'].apply(lambda x: Card.query.filter_by(id=x+1).first().text)  
+        data.append(df_round)
+
+    data = pd.concat(data)
+    print(data)
+
+    fig = px.box(data, x='card', y='position', color='round')
+
+    return json.loads(fig.to_json())
+
 @app.route('/responses', methods=['POST'])
 def add_response():
     data = request.get_json()
@@ -112,7 +179,6 @@ def get_responses():
     else:
         responses = Response.query.all()
 
-    print(responses)
     responses_list = [{'id': response.id, 'respondent_id': response.respondent_id, 
                      'round_id': response.round_id, 'time_submitted': response.time_submitted,
                     #  join maybe better
@@ -154,6 +220,7 @@ def get_cards(id):
 @app.route('/rounds/<int:id>/matrix', methods=['GET'])
 def get_matrix(id):
     data = get_card_matrix(id)
+    print(data)
 
     # print all users starting with "user"
     users = User.query.filter(User.name.like('user%')).all()
@@ -183,8 +250,8 @@ def get_matrix(id):
 @app.route('/rounds/<int:id>/factors', methods=['GET'])
 def get_factors(id):
     data = get_card_matrix(id)
-    users = User.query.filter(User.name.like('user%')).all()
 
+    num_components = 8
     data=np.array(data)
 
     X = np.array(data)
@@ -192,19 +259,17 @@ def get_factors(id):
 
     # Step 4: Correlation Matrix
     correlation_matrix = np.corrcoef(standardized_matrix, rowvar=False)
-    print('corr')
-    print(correlation_matrix.round(2))
 
     # Step 5: Eigenvalue Decomposition
     eigenvalues, eigenvectors = np.linalg.eig(correlation_matrix)
+    for i in range(num_components):
+        if eigenvectors[np.argmax(np.abs(eigenvectors[:, i])), i] < 0:
+            eigenvectors[:, i] = -eigenvectors[:, i]
 
     sorted_indices = np.argsort(eigenvalues)[::-1]
     sorted_eigenvalues = eigenvalues[sorted_indices]
     sorted_eigenvectors = eigenvectors[:, sorted_indices]
-    print('eigenvalues')
-    print(np.round(sorted_eigenvalues, 4))
 
-    num_components = 5
 
     # Selecting the top 'num_components' eigenvectors
     selected_eigenvectors = sorted_eigenvectors[:, :num_components]
@@ -212,14 +277,9 @@ def get_factors(id):
     # Calculate factor loadings
     factor_loadings = selected_eigenvectors * np.sqrt(sorted_eigenvalues[:num_components])
 
-    # Create a factor loadings table
-    factor_loadings_table = np.column_stack((np.arange(1, X.shape[1] + 1), factor_loadings))
-    print('loadings')
-    print(np.round(factor_loadings_table, 4))
+
 
     explained_variance = sorted_eigenvalues / sum(sorted_eigenvalues)
-    print('explained variance')
-    print(np.round(explained_variance, 4))
 
     eigen = np.vstack((sorted_eigenvalues, explained_variance))
     eigen = np.round(eigen, 4)
@@ -231,9 +291,7 @@ def get_factors(id):
     
     fig_json = json.loads(fig.to_json())
 
-    ret = {'loadings': np.round(factor_loadings_table, 2).tolist(), 'eigen': eigen.tolist(), 'scree': fig_json}
-
-    
+    ret = {'loadings': np.round(factor_loadings, 4).tolist(), 'eigen': eigen.tolist(), 'scree': fig_json}
 
     return ret
 
@@ -241,10 +299,46 @@ def get_factors(id):
 
 @app.route('/rounds/<int:id>/rotated_factors', methods=['GET'])
 def get_rotated_factors(id):
-    pass
-    # rotate with varimax
-    # varimax = FactorAnalyzer(rotation='varimax')
-    # varimax.fit(data)
+    # im lazy 
+    max_components = 8
+    data = get_card_matrix(id)
+    users = User.query.filter(User.name.like('user%')).all()
+
+    data = np.array(data)
+
+    X = np.array(data)
+
+    # Step 4: Correlation Matrix
+    correlation_matrix = np.corrcoef(X, rowvar=False)
+
+    # Step 5: Eigenvalue Decomposition
+    eigenvalues, eigenvectors = np.linalg.eig(correlation_matrix)
+
+    # go through each column and switch sign if the value with the highest absolute value is negative
+    for i in range(eigenvectors.shape[1]):
+        if eigenvectors[np.argmax(np.abs(eigenvectors[:, i])), i] < 0:
+            eigenvectors[:, i] = -eigenvectors[:, i]
+
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    sorted_eigenvalues = eigenvalues[sorted_indices]
+    sorted_eigenvectors = eigenvectors[:, sorted_indices]
+
+    # Selecting the top 'num_components' eigenvectors
+    selected_eigenvectors = sorted_eigenvectors[:, :max_components]
+    selected_eigenvalues = sorted_eigenvalues[:max_components]
+
+    # Calculate factor loadings
+    factor_loadings = selected_eigenvectors * np.sqrt(selected_eigenvalues)
+
+
+    print(factor_loadings)
+    rotator = Rotator()
+    rotated_factor_loadings = rotator.fit_transform(factor_loadings[:, :5])
+    # round to 2 decimal places
+    rotated_factor_loadings = np.round(rotated_factor_loadings, 4)
+
+    return jsonify(rotated_factor_loadings.tolist())
+
 
 
 @app.route('/rounds/<int:id>/composite')
@@ -263,14 +357,17 @@ def get_composite_qsorts(id):
     correlation_matrix = np.corrcoef(standardized_matrix, rowvar=False)
     print('corr')
     print(correlation_matrix.round(2))
+    num_components = 5
 
     # Step 5: Eigenvalue Decomposition
     eigenvalues, eigenvectors = np.linalg.eig(correlation_matrix)
+    for i in range(num_components):
+        if eigenvectors[np.argmax(np.abs(eigenvectors[:, i])), i] < 0:
+            eigenvectors[:, i] = -eigenvectors[:, i]
 
     sorted_indices = np.argsort(eigenvalues)[::-1]
     sorted_eigenvalues = eigenvalues[sorted_indices]
     sorted_eigenvectors = eigenvectors[:, sorted_indices]
-    num_components = 5
 
     # Selecting the top 'num_components' eigenvectors
     selected_eigenvectors = sorted_eigenvectors[:, :num_components]
@@ -312,3 +409,18 @@ def get_composite_qsorts(id):
         data.append(qsort)
 
     return jsonify(data)
+
+@app.route('/users', methods=['GET'])
+def get_users():
+    study_id = request.args.get('studyId')
+    if study_id:
+        # Return all users of a particular study
+        users = Study.query.filter_by(id=study_id).first().users
+    else:
+        # Return all users
+        users = User.query.all()
+    
+    # Convert users to JSON format
+    users_json = [{'id': user.id, 'name': user.name, 'email': user.email, 'role': user.role} for user in users]
+    
+    return jsonify(users_json)

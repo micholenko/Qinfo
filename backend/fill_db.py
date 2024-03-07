@@ -1,7 +1,8 @@
 from app import db, app
-from app.models import User, Study, StudyRound, QSet, Response, Card, CardPosition
+from app.models import User, Study, StudyRound, QSet, Response, Card, CardPosition, UserStudyAssociation
 from datetime import datetime
 import json
+import random
 
 
 def fill_db():
@@ -27,6 +28,7 @@ def fill_db():
 
         round1 = StudyRound(study=study1)
         round2 = StudyRound(study=study1)
+        round4 = StudyRound(study=study1)
 
         round3 = StudyRound(study=study2)
 
@@ -53,13 +55,18 @@ def fill_db():
             [4,0],
         ]
 
-
-        position_offset = 0
+        users = []
         for i in range(10):
             user = User(name='user'+str(i), email='test'+str(i)+'@example.com',
                         role='participant')
             db.session.add(user)
-            
+            db.session.commit()
+            association = UserStudyAssociation(user_id=user.id, study_id=study1.id, role='participant')
+            db.session.add(association)
+            users.append(user)
+        position_offset = 0
+
+        for i, user in enumerate(users):
             response = Response(respondent=user, round=round1,
                              time_submitted=datetime.now())
             
@@ -70,7 +77,33 @@ def fill_db():
                 position = CardPosition(
                     card=card, response=response, column=positions[index][0], row=positions[index][1])
                 db.session.add(position)
-            position_offset += 1
+            position_offset += random.randint(0, 9)
+
+        for i, user in enumerate(users):
+            response = Response(respondent=user, round=round2,
+                             time_submitted=datetime.now())
+            
+            db.session.add(response)
+            for j in range(9):
+                card = db.session.get(Card, j+1)
+                index = (j + position_offset) % 9
+                position = CardPosition(
+                    card=card, response=response, column=positions[index][0], row=positions[index][1])
+                db.session.add(position)
+            position_offset += random.randint(0, 9)
+
+        for i, user in enumerate(users):
+            response = Response(respondent=user, round=round4,
+                             time_submitted=datetime.now())
+            
+            db.session.add(response)
+            for j in range(9):
+                card = db.session.get(Card, j+1)
+                index = (j + position_offset) % 9
+                position = CardPosition(
+                    card=card, response=response, column=positions[index][0], row=positions[index][1])
+                db.session.add(position)
+            position_offset += random.randint(0, 9)
 
         # db session add all users and studies
 
@@ -80,6 +113,8 @@ def fill_db():
         db.session.add(study2)
         db.session.add(round1)
         db.session.add(round2)
+        db.session.add(round3)
+        db.session.add(round4)
         db.session.add(qset1)
         db.session.add(response3)
         db.session.commit()
