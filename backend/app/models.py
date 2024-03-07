@@ -125,7 +125,8 @@ class Card(db.Model):
     qSet_id: Mapped[int] = mapped_column(ForeignKey('qset.id'))
     qSet: Mapped['QSet'] = relationship(back_populates='cards')
 
-    positions: Mapped[List['CardPosition']] = relationship(back_populates='card')
+    # could make analysis easier 
+    # positions: Mapped[List['CardPosition']] = relationship(back_populates='card')
 
     def __repr__(self):
         return f"Card('{self.text}')"

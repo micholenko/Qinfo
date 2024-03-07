@@ -7,9 +7,12 @@ import CorrelationMatrix from '@/components/CorrelationMatrix.vue'
 import Factors from '@/components/Factors.vue'
 import CompositeQsorts from '@/components/CompositeQsorts.vue'
 import Participants from '@/components/Participants.vue'
+import Rotation from '@/components/Rotation.vue'
+import Cards from '@/components/Cards.vue'
 
 import { useRoute } from 'vue-router'
 
+import { useStudyStore } from '@/stores/study'
 
 const studyData = ref({ rounds: { count: 0 } })
 const tab = ref(null)
@@ -26,14 +29,22 @@ const qSetObject = ref(null)
 const cardsFinal = ref(null)
 const plotlyChart = ref(null)
 
+const store = useStudyStore()
+
+const fetchUsers = async (studyId) => {
+  const response = await fetch(`http://localhost:5000/users?studyId=${studyId}`)
+  const data = await response.json()
+  store.users = data
+  console.log('store.users:', store.users)
+}
 
 const fetchQset = async (qsetId) => {
   let ret = await fetch(`http://localhost:5000/qsets/${qsetId}`)
   const data = await ret.json()
   console.log(data)
   qSetObject.value = data
+  store.cards = data
 }
-
 
 const fetchData = async () => {
   let ret = await fetch(`http://localhost:5000/studies/${studyId}`)
@@ -45,19 +56,20 @@ const fetchData = async () => {
 
   // add param to request
   await fetchQset(data.q_set_id)
+  await fetchUsers(studyId)
   loading.value = false
 }
 
-
-
 onMounted(() => {
+  console.log('route.params.id', route.params.id)
+  store.study.id = route.params.id
   fetchData()
 })
 </script>
 
 <template>
   <v-container class="d-flex justify-center mt-16">
-    <v-sheet elevation="4" class="rounded-lg w-75">
+    <v-sheet elevation="4" class="rounded-lg w-100">
       <!-- render if not loading -->
       <v-container v-if="!loading">
         <h1>{{ studyData.title }}</h1>
@@ -68,6 +80,14 @@ onMounted(() => {
         <v-divider></v-divider>
 
         <v-expansion-panels multiple>
+          <v-expansion-panel>
+            <v-expansion-panel-title> QSet </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-container>
+                <Cards/>
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
           <v-expansion-panel>
             <v-expansion-panel-title> Participants </v-expansion-panel-title>
             <v-expansion-panel-text>
@@ -87,6 +107,14 @@ onMounted(() => {
             <v-expansion-panel-text>
               <v-container>
                 <Factors />
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          <v-expansion-panel>
+            <v-expansion-panel-title> Factor rotation </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-container>
+                <Rotation />
               </v-container>
             </v-expansion-panel-text>
           </v-expansion-panel>

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { cardsWithText } from '@/helpers'
 import Qtable from '@/components/Qtable.vue'
+import CrossRoundStatistics from './CrossRoundStatistics.vue';
 
 const props = defineProps(['qSet', 'distribution', 'rounds'])
 
@@ -56,7 +57,10 @@ onMounted(async () => {
 
 <template>
   <v-container v-if="!loading">
-    <!-- text vuetify component -->
+    <v-container v-if="rounds.length >  1">
+      <CrossRoundStatistics/>
+    </v-container> 
+
     <div class="text-h6">
       Select a round and a user to view their Q-Sort
     </div>
@@ -78,7 +82,7 @@ onMounted(async () => {
       :items="responses"
       label="Select User"
       item-title="respondent_id"
-      item-value="id"
+      item-value="respondent_id"
       @update:model-value="updateResponse(selectedResponse)"
       density="compact"
       style="width: 200px; margin: 10px 0 10px 0"
