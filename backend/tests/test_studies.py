@@ -1,60 +1,97 @@
 import pytest
 from flask import url_for
-from app import app, db
-from app.models import Study
-from datetime import datetime
+from app.models import User
+from app import db, app
+from tests import client
+
 
 @pytest.fixture
-def client():
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root@localhost/Qinfo'
-    app.config['SERVER_NAME'] = 'localhost'
-    client = app.test_client()
+def setup_db():
     with app.app_context():
-        with app.test_client() as client:
-            db.create_all()
-            yield client
-            db.session.remove()
-            db.drop_all()
+        db.create_all()
 
-def test_hello_world(client):
-    response = client.get(url_for('hello_world'))
-    assert response.status_code == 200
-    assert response.data == b'Hello, World!'
+
+def test_tst(client):
+    assert True
+
 
 def test_create_study(client):
-    response = client.post(url_for('create_study'), json={'title': 'Test Study', 'question': 'What is your favorite color?',
-                                                         'description': 'This is a study about colors'})
+    response = client.post(url_for('studies.create_study'), json={'title': 'Test Study', 'question': 'What is your favorite color?',
+                                                                  'description': 'This is a study about colors',
+                                                                  'distribution': [1, 2, 3, 2, 1],
+                                                                  'col_values': [-2, -1, 0, 1, 2],
+                                                                  })
     assert response.status_code == 200
     assert response.json.items() >= {'id': 1, 'title': 'Test Study', 'question': 'What is your favorite color?',
-                              'description': 'This is a study about colors', 'status': 'not_started'}.items()
+                                     'description': 'This is a study about colors', 'status': 'not_started'}.items()
+
 
 def test_get_study(client):
     # create a study
-    study = Study(title='Test Study', question='What is your favorite color?',
-                  description='This is a study about colors', created_time= datetime.now(),
-                  status='not_started')
-    db.session.add(study)
-    db.session.commit()
-    response = client.get(url_for('get_study', id=1))
+    response = client.post(url_for('studies.create_study'), json={'title': 'Test Study', 'question': 'What is your favorite color?',
+                                                                  'description': 'This is a study about colors',
+                                                                  'distribution': [1, 2, 3, 2, 1],
+                                                                  'col_values': [-2, -1, 0, 1, 2],
+                                                                  })
+
+    id = response.json['id']
+    response = client.get(url_for('studies.get_study', id=id))
     assert response.status_code == 200
     assert response.json.items() >= {'id': 1, 'title': 'Test Study', 'question': 'What is your favorite color?',
-                              'description': 'This is a study about colors', 'status': 'not_started'}.items()
-    
+                                     'description': 'This is a study about colors', 'status': 'not_started'}.items()
+
+
 def test_get_studies(client):
-    response = client.get(url_for('get_studies'))
+    response = client.get(url_for('studies.get_studies'))
     assert response.status_code == 200
     assert response.json == []
 
-    study = Study(title='Test Study', question='What is your favorite color?',
-                  description='This is a study about colors', created_time= datetime.now(),
-                  status='not_started')
-    db.session.add(study)
-    db.session.commit()
+    response = client.post(url_for('studies.create_study'), json={'title': 'Test Study', 'question': 'What is your favorite color?',
+                                                                  'description': 'This is a study about colors',
+                                                                  'distribution': [1, 2, 3, 2, 1],
+                                                                  'col_values': [-2, -1, 0, 1, 2],
+                                                                  })
+    id1 = response.json['id']
+    response = client.post(url_for('studies.create_study'), json={'title': 'Test Study 2', 'question': 'What is your favorite animal?',
+                                                                  'description': 'This is a study about animals',
+                                                                  'distribution': [1, 2, 3, 2, 1],
+                                                                  'col_values': [-2, -1, 0, 1, 2],
+                                                                  })
 
-    response = client.get(url_for('get_studies'))
+    id2 = response.json['id']
+
+    response = client.get(url_for('studies.get_studies'))
     assert response.status_code == 200
-    assert response.json[0].items() >= {'id': 1, 'title': 'Test Study', 'question': 'What is your favorite color?',
-                              'description': 'This is a study about colors', 'status': 'not_started'}.items()
-    
+    assert response.json[0]['id'] == id1
+    assert response.json[1]['id'] == id2
 
+
+def test_update_study(client):
+    response = client.post(url_for('studies.create_study'), json={'title': 'Test Study', 'question': 'What is your favorite color?',
+                                                                  'description': 'This is a study about colors',
+                                                                  'distribution': [1, 2, 3, 2, 1],
+                                                                  'col_values': [-2, -1, 0, 1, 2],
+                                                                  })
+    id = response.json['id']
+    response = client.patch(url_for('studies.update_study', id=id), json={
+                            'status': 'in_progress'})
+    assert response.status_code == 200
+    assert response.json.items() >= {'id': 1, 'title': 'Test Study', 'question': 'What is your favorite color?',
+                                     'description': 'This is a study about colors', 'status': 'in_progress'}.items()
+
+
+def test_delete_study(client):
+    response = client.post(url_for('studies.create_study'), json={'title': 'Test Study', 'question': 'What is your favorite color?',
+                                                                  'description': 'This is a study about colors',
+                                                                  'distribution': [1, 2, 3, 2, 1],
+                                                                  'col_values': [-2, -1, 0, 1, 2],
+                                                                  })
+    id = response.json['id']
+    response = client.get(url_for('studies.get_studies'))
+    assert response.status_code == 200
+    assert len(response.json) == 1
+    response = client.delete(url_for('studies.delete_study', id=id))
+    assert response.status_code == 200
+    response = client.get(url_for('studies.get_studies'))
+    assert response.status_code == 200
+    assert len(response.json) == 0

@@ -8,18 +8,23 @@ from sqlalchemy import CheckConstraint
 from app import db
 from sqlalchemy.ext.hybrid import hybrid_property
 import json
+from flask_login import UserMixin
+from app import login_manager
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     __tablename__ = 'user'
     id: Mapped[int] = mapped_column(primary_key=True)
     # define str length
-    name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(250), nullable=False)
     email: Mapped[str] = mapped_column(
-        String(120), unique=True, nullable=False)
-    role: Mapped[str] = mapped_column(String(120), nullable=False)
+        String(250), unique=True, nullable=False)
+    
+    password: Mapped[str] = mapped_column(String(250), nullable=False)
+    
+    role: Mapped[str] = mapped_column(String(250), nullable=False)
 
     # revise if back_populates is necessary
-    q_sets: Mapped[List['QSet']] = relationship(back_populates='creator')
+    qsets: Mapped[List['QSet']] = relationship(back_populates='creator')
     cards: Mapped[List['Card']] = relationship(back_populates='creator')
 
     studies: Mapped[List['Study']] = relationship(back_populates='users', secondary='user_study_association')
@@ -47,6 +52,7 @@ class Study(db.Model):
     description: Mapped[str] = mapped_column(Text)
     # store array of integers in mysql
     distribution: Mapped[List[int]] = mapped_column(String(120))
+    col_values: Mapped[List[int]] = mapped_column(String(120))
 
 
     created_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
@@ -55,8 +61,8 @@ class Study(db.Model):
 
     rounds: Mapped[List['StudyRound']] = relationship(back_populates='study')
 
-    q_set_id: Mapped[Optional[int]] = mapped_column(ForeignKey('qset.id'))
-    q_set: Mapped[Optional['QSet']] = relationship(back_populates='studies')
+    qset_id: Mapped[Optional[int]] = mapped_column(ForeignKey('qset.id'))
+    qset: Mapped[Optional['QSet']] = relationship(back_populates='studies')
 
     users: Mapped[List['User']] = relationship(back_populates='studies', secondary='user_study_association')
     users_association: Mapped[List['UserStudyAssociation']] = relationship(back_populates='study', viewonly=True)
@@ -104,11 +110,11 @@ class QSet(db.Model):
     description: Mapped[str] = mapped_column(Text)
 
     creator_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
-    creator: Mapped['User'] = relationship(back_populates='q_sets')
+    creator: Mapped['User'] = relationship(back_populates='qsets')
 
-    cards: Mapped[List['Card']] = relationship(back_populates='qSet')
+    cards: Mapped[List['Card']] = relationship(back_populates='qset')
 
-    studies: Mapped[List['Study']] = relationship(back_populates='q_set')
+    studies: Mapped[List['Study']] = relationship(back_populates='qset')
 
     def __repr__(self):
         return f"Qset('{self.title}')"
@@ -122,8 +128,8 @@ class Card(db.Model):
     creator_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
     creator: Mapped['User'] = relationship(back_populates='cards')
 
-    qSet_id: Mapped[int] = mapped_column(ForeignKey('qset.id'))
-    qSet: Mapped['QSet'] = relationship(back_populates='cards')
+    qset_id: Mapped[int] = mapped_column(ForeignKey('qset.id'))
+    qset: Mapped['QSet'] = relationship(back_populates='cards')
 
     # could make analysis easier 
     # positions: Mapped[List['CardPosition']] = relationship(back_populates='card')
@@ -169,3 +175,7 @@ class CardPosition(db.Model):
 
     def __repr__(self) -> str:
         return f'Card position on {self.response}: [{self.column}, {self.row}]'
+
+@login_manager.user_loader
+def loader_user(user_id):
+    return User.query.get(user_id)
