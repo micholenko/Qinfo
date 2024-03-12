@@ -89,7 +89,7 @@ onMounted(async () => {
     >
       <template v-slot:selection="{ item }"> User {{ item.value }} </template>
       <template v-slot:item="{ props, item }">
-        <v-list-item v-bind="props" :title="`User ${item.value}`"></v-list-item>
+        <v-list-item v-bind="props" :title="`User ${item.value - 2}`"></v-list-item>
       </template>
     </v-select>
     <v-container v-if="qSortWithText.length > 0">

@@ -5,6 +5,9 @@ export const useStudyStore = defineStore('study', () => {
   const study = ref({
     id: null,
     cards: [],
+    participants: [],
+    rounds: [],
+    positions: [],
   })
   return {
     study,

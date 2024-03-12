@@ -9,6 +9,7 @@ import CompositeQsorts from '@/components/CompositeQsorts.vue'
 import Participants from '@/components/Participants.vue'
 import Rotation from '@/components/Rotation.vue'
 import Cards from '@/components/Cards.vue'
+import Stats from '@/components/Stats.vue'
 
 import { useRoute } from 'vue-router'
 
@@ -28,14 +29,13 @@ const studyId = route.params.id
 const qSetObject = ref(null)
 const cardsFinal = ref(null)
 const plotlyChart = ref(null)
-
-const store = useStudyStore()
+const studyStore = useStudyStore()
 
 const fetchUsers = async (studyId) => {
   const response = await fetch(`http://localhost:5000/users?studyId=${studyId}`)
   const data = await response.json()
-  store.users = data
-  console.log('store.users:', store.users)
+  studyStore.participants = data
+  console.log('studyStore.participants:', studyStore.participants)
 }
 
 const fetchQset = async (qsetId) => {
@@ -43,7 +43,7 @@ const fetchQset = async (qsetId) => {
   const data = await ret.json()
   console.log(data)
   qSetObject.value = data
-  store.cards = data
+  studyStore.cards = data
 }
 
 const fetchData = async () => {
@@ -53,6 +53,8 @@ const fetchData = async () => {
   console.log('studyData:', studyData.value)
   selectedRound.value = data.rounds.ids[0]
   distribution.value = data.distribution
+  studyStore.positions = data.col_values
+  studyStore.rounds = data.rounds.ids
 
   // add param to request
   await fetchQset(data.q_set_id)
@@ -62,7 +64,7 @@ const fetchData = async () => {
 
 onMounted(() => {
   console.log('route.params.id', route.params.id)
-  store.study.id = route.params.id
+  studyStore.study.id = route.params.id
   fetchData()
 })
 </script>
@@ -81,6 +83,15 @@ onMounted(() => {
 
         <v-expansion-panels multiple>
           <v-expansion-panel>
+            <v-expansion-panel-title> Stats </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-container>
+                <Stats/>
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          <v-expansion-panel>
+
             <v-expansion-panel-title> QSet </v-expansion-panel-title>
             <v-expansion-panel-text>
               <v-container>

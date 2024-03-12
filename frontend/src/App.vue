@@ -1,5 +1,9 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
+import { useUserStore } from './stores/user';
+
+const userStore = useUserStore()
+// console.log('userStore:', userStore)
 </script>
 
 <template>
@@ -12,6 +16,17 @@ import { RouterLink, RouterView } from 'vue-router'
             style="text-decoration: none; color: black;"
           to="/"> Qinfo analysis </router-link>
         </v-app-bar-title>
+        <v-spacer></v-spacer>
+        <div v-if="userStore.user.name"
+          style="display: flex; align-items: center;"
+        >
+          <p>{{ userStore.user.name }}</p>
+          <v-btn text to="/login">Logout</v-btn>
+        </div>
+        <div v-else>
+          <v-btn text to="/login">Login</v-btn>
+          <v-btn text to="/register">Register</v-btn>
+        </div>
       </v-app-bar>
       <v-main class="bg-blue-grey-lighten-5">
         <router-view />

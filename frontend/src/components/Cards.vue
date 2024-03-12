@@ -2,8 +2,6 @@
 import { onMounted, ref } from 'vue'
 import plotly from 'plotly.js-dist'
 
-
-
 import { useStudyStore } from '@/stores/study';
 
 const store = useStudyStore()

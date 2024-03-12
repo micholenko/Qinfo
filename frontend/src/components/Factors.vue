@@ -13,8 +13,6 @@ const headers = [
   {title: 'Factor 3', key:'3'},
   {title: 'Factor 4', key:'4'},
   {title: 'Factor 5', key:'5'},
-  
-
 ]
 
 const fetchFactors = async (round_id) => {
