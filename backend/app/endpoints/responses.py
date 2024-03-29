@@ -1,7 +1,7 @@
 from flask import Blueprint
 from flask import request, jsonify
 from app import db
-from app.models import Response, CardPosition, StudyRound, User
+from app.models import Response, CardPosition, Round, User
 from datetime import datetime
 import json
 import numpy as np
@@ -55,7 +55,7 @@ def add_cards(id):
 @responses_blueprint.route('/responses/<int:id>/cards', methods=['GET'])
 def get_cards(id):
     cards = CardPosition.query.filter_by(response_id=id).order_by(CardPosition.column, CardPosition.row).all()
-    distribution = json.loads(db.session.get(StudyRound, db.session.get(Response, id).round_id).study.distribution)
+    distribution = json.loads(db.session.get(Round, db.session.get(Response, id).round_id).study.distribution)
     cumul_distribution = np.cumsum(distribution)
     # prepend 0 to cumul_distribution
     cumul_distribution = np.insert(cumul_distribution, 0, 0)

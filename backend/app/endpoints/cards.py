@@ -5,10 +5,12 @@ from app.models import Card
 
 cards_blueprint = Blueprint('cards', __name__)
 
+# TODO: probably remove and add functionality to qsets, or idk
+
 @cards_blueprint.route('/cards', methods=['POST'])
 def create_card():
     data = request.get_json()
-    new_card = Card(text=data['text'], qset_id=data['qset_id'])
+    new_card = Card(text=data['text'], qset_id=data['qset_id'], creator_id=data['creator_id'])
     db.session.add(new_card)
     db.session.commit()
     return jsonify({'id': new_card.id, 'text': new_card.text, 'qset_id': new_card.qset_id})

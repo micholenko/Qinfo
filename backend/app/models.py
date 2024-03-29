@@ -56,10 +56,9 @@ class Study(db.Model):
 
 
     created_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    submit_time: Mapped[Optional[DateTime]] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
 
-    rounds: Mapped[List['StudyRound']] = relationship(back_populates='study')
+    rounds: Mapped[List['Round']] = relationship(back_populates='study')
 
     qset_id: Mapped[Optional[int]] = mapped_column(ForeignKey('qset.id'))
     qset: Mapped[Optional['QSet']] = relationship(back_populates='studies')
@@ -92,16 +91,25 @@ class UserStudyAssociation(db.Model):
     )   
 
 
-class StudyRound(db.Model):
+class Round(db.Model):
     __tablename__ = 'study_round'
     id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+
     study_id: Mapped[int] = mapped_column(ForeignKey('study.id'))
     study: Mapped['Study'] = relationship(back_populates='rounds')
+
+    created_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    start_time: Mapped[Optional[DateTime]] = mapped_column(DateTime)
+    end_time: Mapped[Optional[DateTime]] = mapped_column(DateTime)
+
+
 
     responses: Mapped[List['Response']] = relationship(back_populates='round')
 
     def __repr__(self):
-        return f"StudyRound('{self.study_id}')"
+        return f"Round('{self.study_id}')"
 
 class QSet(db.Model):
     __tablename__ = 'qset'
@@ -145,7 +153,7 @@ class Response(db.Model):
     respondent: Mapped['User'] = relationship(back_populates='responses')
 
     round_id: Mapped[int] = mapped_column(ForeignKey('study_round.id'))
-    round: Mapped['StudyRound'] = relationship(back_populates='responses')
+    round: Mapped['Round'] = relationship(back_populates='responses')
 
     time_submitted: Mapped[Optional[DateTime]] = mapped_column(DateTime)
 

@@ -57,7 +57,7 @@ const fetchData = async () => {
   studyStore.rounds = data.rounds.ids
 
   // add param to request
-  await fetchQset(data.q_set_id)
+  await fetchQset(data.qset_id)
   await fetchUsers(studyId)
   loading.value = false
 }

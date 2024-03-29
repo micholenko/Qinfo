@@ -1,5 +1,5 @@
 from app import db, app
-from app.models import User, Study, StudyRound, QSet, Response, Card, CardPosition, UserStudyAssociation
+from app.models import User, Study, Round, QSet, Response, Card, CardPosition, UserStudyAssociation
 from datetime import datetime
 import json
 import random
@@ -28,11 +28,11 @@ def fill_db():
         qset1 = QSet(title='QSet 1', description='This is a set of cards',
                      creator=user1, studies=[study1, study2])
 
-        round1 = StudyRound(study=study1)
-        round2 = StudyRound(study=study1)
-        round4 = StudyRound(study=study1)
+        round1 = Round(study=study1, created_time=datetime.now(), name='Round 1')
+        round2 = Round(study=study1, created_time=datetime.now(), name='Round 2')
+        round4 = Round(study=study1, created_time=datetime.now(), name='Round 3')
 
-        round3 = StudyRound(study=study2)
+        round3 = Round(study=study2, created_time=datetime.now(), name='Round 1')
 
         response3 = Response(respondent=user1, round=round3,
                              time_submitted=datetime.now())
@@ -81,7 +81,7 @@ def fill_db():
                 position = CardPosition(
                     card=card, response=response, column=positions[index][0], row=positions[index][1])
                 db.session.add(position)
-            position_offset += random.randint(0, 1)
+            # position_offset += random.randint(0, 9)
 
         for i, user in enumerate(users):
             response = Response(respondent=user, round=round2,
@@ -94,7 +94,7 @@ def fill_db():
                 position = CardPosition(
                     card=card, response=response, column=positions[index][0], row=positions[index][1])
                 db.session.add(position)
-            position_offset += random.randint(0, 1)
+            # position_offset += random.randint(0, 9)
 
         for i, user in enumerate(users):
             response = Response(respondent=user, round=round4,
@@ -107,7 +107,7 @@ def fill_db():
                 position = CardPosition(
                     card=card, response=response, column=positions[index][0], row=positions[index][1])
                 db.session.add(position)
-            position_offset += random.randint(0, 1)
+            # position_offset += random.randint(0, 9)
 
         # db session add all users and studies
 
@@ -124,6 +124,79 @@ def fill_db():
         db.session.commit()
 
         # get all cards in qset1 join with Cards table
+
+
+        # create a study of 5 rounds with 40 users, with distribution: [1,2,3,4,5,6,7,6,5,4,3,2,1] total cards being 47
+        # each user has a response in each round
+
+        study3 = Study(title='Study 3', description='This is a study', created_time=datetime.now(),
+                          status='not_started', question='What is your favorite color?',
+                          distribution=json.dumps([1, 2, 3, 4, 5, 6, 7, 6, 5, 4, 3, 2, 1]),
+                          col_values=json.dumps([-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6]))
+        
+        qset2 = QSet(title='QSet 2', description='This is a set of cards',
+                        creator=user1, studies=[study3])
+        
+
+        # create all possible positions from distribution
+
+        positions = []
+        for index, height in enumerate(json.loads(study3.distribution)):
+            for j in range(height):
+                positions.append((index, j))
+
+
+        round5 = Round(study=study3, created_time=datetime.now(), name='Round 1')
+        round6 = Round(study=study3, created_time=datetime.now(), name='Round 2')
+        round7 = Round(study=study3, created_time=datetime.now(), name='Round 3')
+        round8 = Round(study=study3, created_time=datetime.now(), name='Round 4')
+        round9 = Round(study=study3, created_time=datetime.now(), name='Round 5')
+
+        db.session.add(study3)
+        db.session.add(qset2)
+        db.session.add(round5)
+        db.session.add(round6)
+        db.session.add(round7)
+        db.session.add(round8)
+        db.session.add(round9)
+        db.session.commit()
+
+        cards = []
+        
+        for i in range(49):
+            card = Card(text='card'+str(i), creator=user1, qset=qset2)
+            cards.append(card)
+            db.session.add(card)
+
+        users = []
+        for i in range(40):
+            user = User(name='study3user'+str(i), email='study3user'+str(i)+'@example.com',
+                        role='participant', password='password')
+            db.session.add(user)
+            db.session.commit()
+            association = UserStudyAssociation(
+                user_id=user.id, study_id=study3.id, role='participant')
+            db.session.add(association)
+            users.append(user)
+
+        for round in study3.rounds:
+            for i, user in enumerate(users):
+                response = Response(respondent=user, round=round,
+                                    time_submitted=datetime.now())
+                
+                db.session.add(response)
+                positions_tmp = positions.copy()
+
+                for j in range(len(cards)):
+                    rand = random.randint(0, len(positions_tmp)-1)
+                    position = CardPosition(
+                        card=cards[j], response=response, column=positions_tmp[rand][0], row=positions_tmp[rand][1])
+                    db.session.add(position)
+                    positions_tmp.pop(rand)
+
+        db.session.commit()
+
+
 
 
 if __name__ == "__main__":

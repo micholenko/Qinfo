@@ -37,4 +37,22 @@ def get_qset(id):
                      'cards_count': len(qset.cards),
                      'cards': [{'id': card.id, 'text': card.text} for card in qset.cards]})
 
+@qsets_blueprint.route('/qsets/<int:id>', methods=['PATCH'])
+def update_qset(id):
+    qset = db.session.get(QSet, id)
+    data = request.get_json()
+    for key in data:
+        setattr(qset, key, data[key])
+    db.session.commit()
+    return jsonify({'id': qset.id, 'title': qset.title, 'description': qset.description, 
+                    'creator_id': qset.creator_id, 
+                    'cards_count': len(qset.cards)})
+
+@qsets_blueprint.route('/qsets/<int:id>', methods=['DELETE'])
+def delete_qset(id):
+    qset = db.session.get(QSet, id)
+    db.session.delete(qset)
+    db.session.commit()
+    return "QSet deleted successfully"
+
 

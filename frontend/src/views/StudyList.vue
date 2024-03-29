@@ -4,10 +4,12 @@ import axios from 'axios'
 import { ref, onMounted } from 'vue'
 import Plotly from 'plotly.js-dist'
 import { useRouter } from 'vue-router'
+import { useStudyStore } from '@/stores/study'
 
 const apiResponse = ref([])
 const plotlyChart = ref(null)
 
+const studyStore = useStudyStore()
 const router = useRouter()
 
 const headers = [
@@ -67,6 +69,7 @@ const mouseOut = (event) => {
 }
 
 onMounted(() => {
+  studyStore.study.id = null
   fetchData()
   // plotChart()
 })

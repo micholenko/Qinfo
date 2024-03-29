@@ -1,6 +1,6 @@
 # from tests import client
 # import pytest
-# from app.models import User, Study, StudyRound, db, Card, QSet
+# from app.models import User, Study, Round, db, Card, QSet
 # from datetime import datetime
 # from flask import url_for
 # from app import app
@@ -30,7 +30,7 @@
 #                    status='not_started',
 #                    qset=qset1,
 #                    )
-#     round1 = StudyRound(study=study1)
+#     round1 = Round(study=study1)
 
 #     for i in range(10):
 #         card = Card(text=f'This is card {i}',

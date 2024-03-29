@@ -1,59 +1,73 @@
+from app.helpers import get_card_matrix
+from datetime import datetime
+from flask import request
+from factor_analyzer import Rotator
+from sklearn.decomposition import PCA
+import plotly.graph_objects as go
+import plotly.express as px
+import pandas as pd
+import numpy as np
+import json
+from flask import jsonify
+from app.models import Round, User, Card
+from app import db
 from flask import Blueprint
 
 rounds_blueprint = Blueprint('rounds', __name__)
 
-from app import db
-from app.models import StudyRound, User, Card
-from flask import jsonify
-import json
-import numpy as np
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from sklearn.decomposition import PCA
-from factor_analyzer import Rotator
 
-from app.helpers import get_card_matrix
+@rounds_blueprint.route('/rounds', methods=['POST'])
+def create_round():
+    data = request.get_json()
+    # figure out how many rounds are there for the study
+    rounds = Round.query.filter_by(study_id=data['study_id']).all()
 
+    new_round = Round(study_id=data['study_id'], created_time=datetime.now(
+    ), name=data['name'] if 'name' in data else 'Round ' + str(len(rounds) + 1))
+
+    db.session.add(new_round)
+    db.session.commit()
+    return jsonify({'id': new_round.id, 'study_id': new_round.study_id, 'name': new_round.name})
 
 
 @rounds_blueprint.route('/rounds/<int:id>/matrix', methods=['GET'])
 def get_matrix(id):
-    data = get_card_matrix(id)
-    print(data)
+    round = db.session.get(Round, id)
+    study = round.study
+    data = get_card_matrix(round, study)
 
-    # print all users starting with "user"
-    users = User.query.filter(User.name.like('user%')).all()
+
+    users = study.users    
     df = pd.DataFrame(data, columns=[user.name for user in users])
-    matrix = df.corr(method='pearson')    
+    matrix = df.corr(method='pearson')
 
     fig = go.Figure(data=go.Heatmap(
-                z=matrix,
-                x=list(matrix.columns),
-                y=list(matrix.index),
-                colorscale='Viridis',
-                zmin=-1, zmax=1))
+        z=matrix,
+        x=list(matrix.columns),
+        y=list(matrix.index),
+        colorscale='Viridis',
+        zmin=-1, zmax=1))
 
     annotations = []
     for i, row in enumerate(matrix.values):
         for j, value in enumerate(row):
-            annotations.append(go.layout.Annotation(text=str(value.round(2)), x=matrix.columns[j], y=matrix.index[i], showarrow=False))
+            annotations.append(go.layout.Annotation(text=str(value.round(
+                2)), x=matrix.columns[j], y=matrix.index[i], showarrow=False))
 
     fig.update_layout(
         annotations=annotations,
         xaxis=dict(side="top")
-        )
+    )
     fig.update_yaxes(autorange="reversed")
-    # fig.show()
     return fig.to_json()
+
 
 @rounds_blueprint.route('/rounds/<int:id>/factors', methods=['GET'])
 def get_factors(id):
     data = get_card_matrix(id)
 
-
     num_components = 8
-    data=np.array(data)
+    data = np.array(data)
 
     X = np.array(data)
     standardized_matrix = (data - np.mean(data, axis=0)) / np.std(X, axis=0)
@@ -71,14 +85,12 @@ def get_factors(id):
     sorted_eigenvalues = eigenvalues[sorted_indices]
     sorted_eigenvectors = eigenvectors[:, sorted_indices]
 
-
     # Selecting the top 'num_components' eigenvectors
     selected_eigenvectors = sorted_eigenvectors[:, :num_components]
 
     # Calculate factor loadings
-    factor_loadings = selected_eigenvectors * np.sqrt(sorted_eigenvalues[:num_components])
-
-
+    factor_loadings = selected_eigenvectors * \
+        np.sqrt(sorted_eigenvalues[:num_components])
 
     explained_variance = sorted_eigenvalues / sum(sorted_eigenvalues)
 
@@ -86,22 +98,23 @@ def get_factors(id):
     eigen = np.round(eigen, 4)
     eigen = np.column_stack((['eigenvalues', 'explained_variance'], eigen))
 
-    
-    fig = px.line(x=[i for i in range(1, len(sorted_eigenvalues[:num_components]) + 1)], 
+    fig = px.line(x=[i for i in range(1, len(sorted_eigenvalues[:num_components]) + 1)],
                   y=sorted_eigenvalues[:num_components], title='Scree Plot', markers=True)
     print(fig)
     # fig.show()
-    
+
     fig_json = json.loads(fig.to_json())
 
-    ret = {'loadings': np.round(factor_loadings, 4).tolist(), 'eigen': eigen.tolist(), 'scree': fig_json}
+    ret = {'loadings': np.round(factor_loadings, 4).tolist(
+    ), 'eigen': eigen.tolist(), 'scree': fig_json}
 
-    return ret
+    # return ret
     return {}
+
 
 @rounds_blueprint.route('/rounds/<int:id>/rotated_factors', methods=['GET'])
 def get_rotated_factors(id):
-    # im lazy 
+    # im lazy
     max_components = 8
     data = get_card_matrix(id)
     users = User.query.filter(User.name.like('user%')).all()
@@ -132,7 +145,6 @@ def get_rotated_factors(id):
     # Calculate factor loadings
     factor_loadings = selected_eigenvectors * np.sqrt(selected_eigenvalues)
 
-
     print(factor_loadings)
     rotator = Rotator()
     rotated_factor_loadings = rotator.fit_transform(factor_loadings[:, :5])
@@ -142,15 +154,14 @@ def get_rotated_factors(id):
     return jsonify(rotated_factor_loadings.tolist())
 
 
-
 @rounds_blueprint.route('/rounds/<int:id>/composite', methods=['GET'])
 def get_composite_qsorts(id):
 
-# im lazy 
+    # im lazy
     data = get_card_matrix(id)
     users = User.query.filter(User.name.like('user%')).all()
 
-    data=np.array(data)
+    data = np.array(data)
 
     X = np.array(data)
     standardized_matrix = (data - np.mean(data, axis=0)) / np.std(X, axis=0)
@@ -181,8 +192,8 @@ def get_composite_qsorts(id):
     print("Factor Scores:")
     print(factor_scores)
 
-    # get distribution from study 
-    distribution = json.loads(db.session.get(StudyRound, id).study.distribution)
+    # get distribution from study
+    distribution = json.loads(db.session.get(Round, id).study.distribution)
     cumul_distribution = np.cumsum(distribution)
     cumul_distribution = np.insert(cumul_distribution, 0, 0)
 
@@ -194,7 +205,6 @@ def get_composite_qsorts(id):
     q_sorts = np.argsort(-factor_scores, axis=0)
     q_sorts = q_sorts[::-1].T
 
-
     data = []
     for i, q_sort in enumerate(q_sorts):
         qsort = {
@@ -204,7 +214,8 @@ def get_composite_qsorts(id):
         sort = []
         for count, start_index in zip(distribution, cumul_distribution):
             # append cards in range
-            selected = [cards[i].id for i in q_sort[int(start_index):int(start_index + count)]]
+            selected = [cards[i].id for i in q_sort[int(
+                start_index):int(start_index + count)]]
             print(selected)
             sort.append(selected)
         qsort['cards'] = sort

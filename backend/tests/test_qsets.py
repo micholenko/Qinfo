@@ -22,7 +22,6 @@ def setup_db():
                        question='What is your favorite color?',
                        description='This is a study about colors',
                        created_time=datetime.now(),
-                       submit_time=datetime.now() + timedelta(days=7),
                        status='not_started',
                        distribution=json.dumps([1, 2, 3, 2, 1]),
                        col_values=json.dumps([-2, -1, 0, 1, 2])
@@ -66,3 +65,30 @@ def test_get_qsets(client):
     response = client.get(url_for('qsets.get_qsets'))
     assert response.status_code == 200
     assert response.json[0]['id'] == id
+
+def test_update_qset(client):
+    user_id = User.query.first().id
+    response = client.post(url_for('qsets.create_qset'), json={
+                           'title': 'Test QSet', 'description': 'This is a set of cards', 'creator_id': user_id})
+    id = response.json['id']
+    response = client.patch(url_for('qsets.update_qset', id=id), json={
+                         'title': 'Updated QSet', 'description': 'This is an updated set of cards'})
+    assert response.status_code == 200
+    assert response.json.items() >= {
+        'id': id, 'title': 'Updated QSet', 'description': 'This is an updated set of cards'}.items()
+    
+def test_delete_qset(client):
+    user_id = User.query.first().id
+    response = client.post(url_for('qsets.create_qset'), json={
+                           'title': 'Test QSet', 'description': 'This is a set of cards', 'creator_id': user_id})
+    id = response.json['id']
+    response = client.get(url_for('qsets.get_qsets'))
+    assert response.status_code == 200
+    assert response.json[0]['id'] == id
+
+    response = client.delete(url_for('qsets.delete_qset', id=id))
+    assert response.status_code == 200
+
+    response = client.get(url_for('qsets.get_qsets'))
+    assert response.status_code == 200
+    assert response.json == []

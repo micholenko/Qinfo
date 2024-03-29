@@ -69,6 +69,7 @@ def login():
     
     return jsonify({'id': user.id, 'name': user.name, 'email': user.email, 'role': user.role})
 
+
 @users_blueprint.route('/logout', methods=['POST'])
 def logout():
     logout_user()

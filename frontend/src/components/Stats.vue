@@ -3,8 +3,13 @@ import { ref, onMounted } from 'vue'
 import { useStudyStore } from '@/stores/study'
 
 import Plotly from 'plotly.js-dist'
+import { parse } from 'vue/compiler-sfc'
+import * as d3 from 'd3'
+
+
 
 const store = useStudyStore()
+const props = defineProps(['participantId'])
 
 const attributeStringArr = ['round', 'participant', 'card', 'position']
 
@@ -23,6 +28,9 @@ const colors = [
 
 const round = ref(null)
 const participant = ref(null)
+if (props.participantId) {
+  participant.value = parseInt(props.participantId)
+}
 const card = ref(null)
 const position = ref(null)
 const data = ref([])
@@ -98,6 +106,7 @@ const axesLabels = (filter) => {
   if (filter === 'card')
     return {
       tickvals: store.cards.cards.map((card) => card.id),
+      // truncate x axis tick labels
       ticktext: store.cards.cards.map((card) => card.text)
     }
   if (filter === 'participant')
@@ -114,7 +123,6 @@ const axesLabels = (filter) => {
 
 const scatter3d = (filteredData, selectedFilters) => {
   const axNames = attributeStringArr.filter((name) => !selectedFilters.includes(name))
-
 
   const trace = {
     x: filteredData.map((row) => row[axNames[0]]),
@@ -202,10 +210,12 @@ const scatter2d = (inputData, selectedFilters) => {
   uniqueRounds.forEach((round, index) => {
     const filteredData = inputData.filter((row) => row.round === round)
     const trace = {
-      x: filteredData.map((row) => row[xAttr] + Math.random() * 0.05 - 0.05), // jitter
+      x: filteredData.map((row) => row[xAttr] + Math.random() * 0.2 - 0.1), // jitter
       y: filteredData.map((row) => row[yAttr]),
       unjitteredX: filteredData.map((row) => row[xAttr]),
-      mode: 'markers',
+      // mode: 'markers+lines',
+      mode: 'lines+markers',
+      opacity: 0.7,
       type: 'scatter',
       name: `Round ${round}`,
       marker: {
@@ -217,12 +227,12 @@ const scatter2d = (inputData, selectedFilters) => {
     trace.hoverinfo = 'text'
     // TODO: make better
     trace.text = filteredData.map((row, i) => `x: ${trace.unjitteredX[i]}, y: ${row[yAttr]}`)
-
+    // truncate x axis tick labels
     traces.push(trace)
   })
 
   const layout = {
-    xaxis: { title: capitalizeFirst(xAttr), ...axesLabels(xAttr) },
+    xaxis: { title: capitalizeFirst(xAttr), ...axesLabels(xAttr), tickangle: 90},
     yaxis: { title: capitalizeFirst(yAttr), ...axesLabels(yAttr) },
     margin: {
       t: 30, //top margin
@@ -266,6 +276,7 @@ const scatter2d2filters = (inputData, selectedFilters) => {
 
 const updatePlot = () => {
   const count = countFilters()
+  console.log('count:', count)
 
   // Create a color scale for the legend
   let traces = [],
@@ -281,7 +292,12 @@ const updatePlot = () => {
     }
 
     if (participant.value !== null) {
+      console.log('participant:', participant.value)
+      console.log('data:', data.value)
       const filteredData = data.value.filter((row) => row.participant === participant.value)
+      console.log('filteredData:', filteredData)
+      filteredData.sort((a, b) => a.card - b.card)
+
       if (switch3d.value) {
         ;({ traces, layout } = scatter3d(filteredData, ['participant']))
       } else {
@@ -323,6 +339,29 @@ const updatePlot = () => {
   }
   Plotly.react('plotlyChart', traces, layout)
 
+  // add on hover event, display text of data point in a box
+  var tooltip = d3.select('body').append('div').attr('class', 'tooltip').style('opacity', 1).style('position', 'absolute')
+                .style('padding', '10px').style('border', '1px solid #ccc').style('border-radius', '5px').style('color', 'black')
+
+  // Select x ticks and bind mouseover event
+  d3.selectAll('.xtick')
+    .on('mouseover', function (event, d) {
+      let target =  this.getBoundingClientRect();
+      console.log('event:', event)
+      tooltip.transition().duration(200).style('opacity', 0.9)
+      tooltip
+        .html(d.text )
+        .style('left', target.left + window.scrollX + 'px')
+        .style('top', target.top + window.scrollY + 28 + 'px')
+    })
+
+  d3.selectAll('.xaxislayer-above')
+    .on('mouseout', function (d) {
+      console.log('mouseout')
+      tooltip.transition().duration(500).style('opacity', 0)
+    })
+  // change text
+  console.log('d3.selectAll:', d3.selectAll('.xtick'))
   if (count === 3) {
     const filters = [round.value, participant.value, card.value, position.value]
     const filteredData = data.value.filter((row) => {
@@ -376,7 +415,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div style="display: flex; justify-content: center; align-items: center; height: 100%">
+  <div style="display: flex; justify-content: center; align-items: center">
     <v-select
       v-model="round"
       :items="store.rounds"
@@ -388,6 +427,7 @@ onMounted(async () => {
     </v-select>
     <!-- conbobox -->
     <v-select
+      v-if="props.participantId === undefined"
       v-model="participant"
       :items="store.participants"
       item-title="name"
@@ -418,7 +458,7 @@ onMounted(async () => {
       v-on:update:model-value="updatePlot"
     >
     </v-select>
-    <v-switch v-on:click="switch3dFunc" color="primary" label="3d" hide-details></v-switch>
+    <!-- <v-switch v-on:click="switch3dFunc" color="primary" label="3d" hide-details></v-switch> -->
     <v-btn v-on:click="switchAxisFunc">Switch Axis</v-btn>
 
     <!-- clear all filters -->
@@ -465,6 +505,12 @@ onMounted(async () => {
   <!-- div center horizontally -->
   <div
     id="plotlyChart"
-    :style="{ display: filterCount >= 3 ? 'none' : 'block', width: '100%', height: '600px' }"
+    :style="{ display: filterCount >= 3 ? 'none' : 'block', width: '100%' }"
   ></div>
 </template>
+
+<style>
+.xtick {
+  pointer-events: all;
+}
+</style>

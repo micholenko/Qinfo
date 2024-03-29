@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 
 
 def get_card_matrix(id):
-    cards = Card.query.filter_by(qset_id=1).all()
+    cards = Card.query.filter_by(qSet_id=1).all()
     responses = Response.query.filter_by(round_id=id).all()
     card_positions = []
     for response in responses:
