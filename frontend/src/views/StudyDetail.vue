@@ -52,7 +52,7 @@ const fetchData = async () => {
   studyData.value = data
   console.log('studyData:', studyData.value)
   selectedRound.value = data.rounds.ids[0]
-  distribution.value = data.distribution
+  studyStore.distribution = data.distribution
   studyStore.positions = data.col_values
   studyStore.rounds = data.rounds.ids
 

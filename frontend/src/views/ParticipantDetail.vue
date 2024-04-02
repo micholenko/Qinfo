@@ -4,6 +4,7 @@ import Plotly from 'plotly.js-dist'
 import { useRoute } from 'vue-router'
 import { useStudyStore } from '@/stores/study'
 import Stats from '@/components/Stats.vue'
+import InteractiveAnalysis from '@/components/InteractiveAnalysis.vue'
 
 const studyStore = useStudyStore()
 let studyId = useRoute().params.id
@@ -20,15 +21,26 @@ onMounted(() => {
       const correlation_matrix = data
       Plotly.newPlot('corr_matrix', correlation_matrix)
     })
+  fetch(`http://localhost:5000/studies/${studyId}/user_card_stats?user_id=${participantId}`)
+    .then((response) => response.json())
+    .then((data) => {
+      const user_cards = data
+      Plotly.newPlot('user_cards', user_cards)
+    })
+
 })
 </script>
 
 <template>
   <v-card style="height: 85vh; margin: 15px">
     <h2>{{participantName}}</h2>
-    <div id="corr_matrix" style="width: 30%;"></div>
+    <div style="display: flex; justify-content: center; height: 30%">
+      <div id="corr_matrix" style="width: 100%; height: 100%"></div>
+      <div id="user_cards" style="width: 100%; height: 100%"></div>
+    </div>
+
     <div>
-      <Stats :participantId="participantId" />
+      <InteractiveAnalysis :parentElement="'participant'"/>
     </div>
   </v-card>
 </template>

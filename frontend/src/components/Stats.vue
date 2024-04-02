@@ -197,14 +197,18 @@ const scatter3dPerRound = (filteredData) => {
   return { traces, layout }
 }
 
+// const boxplot = ()
+
 const scatter2d = (inputData, selectedFilters) => {
   const attributesWithoutRound = attributeStringArr.filter((name) => name !== 'round')
   const axNames = attributesWithoutRound.filter((name) => !selectedFilters.includes(name))
-  const uniqueRounds = [...new Set(inputData.map((row) => row.round))]
+  // const uniqueRounds = [...new Set(inputData.map((row) => row.round))]
   const traces = []
 
   const xAttr = switchAxis.value ? axNames[1] : axNames[0]
   const yAttr = switchAxis.value ? axNames[0] : axNames[1]
+
+  const uniqueRounds = [...new Set(inputData.map((row) => row.round))]
 
   // Create a trace for each round
   uniqueRounds.forEach((round, index) => {

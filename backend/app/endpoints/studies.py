@@ -378,6 +378,50 @@ def get_user_details(id):
 
     return json.loads(fig.to_json())
 
+@studies_blueprint.route('/studies/<int:id>/user_card_stats', methods=['GET'])
+def get_user_card_stats(id):
+    user_id = request.args.get('user_id')
+    study = db.session.query(Study).filter_by(id=id).first()
+
+    data = get_all_data(id)
+    print(data)
+    print(user_id)
+    data = data[data['participant'] == int(user_id)]
+    print(data)
+
+    # calculate the mean and standard deviation of each card
+    card_stats = data.groupby('card').agg({'position': ['mean', 'std']})
+    card_stats.columns = ['mean', 'std']
+    card_stats = card_stats.reset_index()
+    # create a plot with the mean and standard deviation of each card
+
+    cards = db.session.query(Study).filter_by(id=id).first().qset.cards
+    card_stats['id'] = [card.id for card in cards]
+    card_stats['name'] = [card.text for card in cards]
+
+    print(card_stats)
+
+    fig = px.scatter(card_stats, x='std', y='mean',
+                        custom_data=['id', 'name'])
+    
+    # set max x and y values
+    fig.update_xaxes(range=[-0.2, max(card_stats['std']) + 0.5])
+
+    col_values = json.loads(study.col_values)
+
+    fig.update_yaxes(range=[col_values[0]-0.2, col_values[-1]+0.2])
+    fig.update_traces(marker=dict(size=12, opacity=0.8))
+    fig.update_traces(
+        hovertemplate='''<b>%{customdata[1]}</b><br><b>Mean:</b> %{y}<br><b>Standard Deviation:</b> %{x}<br>Click to see details''')
+    
+    fig.update_traces(textposition='top center')
+
+    return json.loads(fig.to_json())
+
+    
+
+
+
 
 @studies_blueprint.route('/studies/<int:id>/card_stats2', methods=['GET'])
 def get_study_card_stats(id):

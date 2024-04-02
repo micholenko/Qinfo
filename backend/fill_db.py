@@ -164,7 +164,7 @@ def fill_db():
         cards = []
         
         for i in range(49):
-            card = Card(text='card'+str(i), creator=user1, qset=qset2)
+            card = Card(text='Lorem ipsum dolor sit amet, consectetur adipiscing elit'+str(i), creator=user1, qset=qset2)
             cards.append(card)
             db.session.add(card)
 

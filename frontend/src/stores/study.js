@@ -8,6 +8,7 @@ export const useStudyStore = defineStore('study', () => {
     participants: [],
     rounds: [],
     positions: [],
+    distributions: [],
   })
   return {
     study,
