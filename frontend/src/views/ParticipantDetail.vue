@@ -32,7 +32,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <v-card style="height: 85vh; margin: 15px">
+  <v-card style="margin: 15px; padding-left: 15px; min-height: 87vh;">
     <h2>{{participantName}}</h2>
     <div style="display: flex; justify-content: center; height: 30%">
       <div id="corr_matrix" style="width: 100%; height: 100%"></div>

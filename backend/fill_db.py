@@ -20,22 +20,15 @@ def fill_db():
                        status='not_started', question='What is your favorite color?',
                        distribution=json.dumps([1, 2, 3, 2, 1]),
                        col_values=json.dumps([-2, -1, 0, 1, 2]))
-        study2 = Study(title='Study 2', description='This is another study', created_time=datetime.now(),
-                       status='not_started', question='What is your favorite animal?',
-                       distribution=json.dumps([1, 1, 2, 3, 3, 3, 2, 1, 1]),
-                       col_values=json.dumps([-4, -3, -2, -1, 0, 1, 2, 3, 4]))
-
+        
         qset1 = QSet(title='QSet 1', description='This is a set of cards',
-                     creator=user1, studies=[study1, study2])
+                     creator=user1, studies=[study1])
+
 
         round1 = Round(study=study1, created_time=datetime.now(), name='Round 1')
         round2 = Round(study=study1, created_time=datetime.now(), name='Round 2')
         round4 = Round(study=study1, created_time=datetime.now(), name='Round 3')
 
-        round3 = Round(study=study2, created_time=datetime.now(), name='Round 1')
-
-        response3 = Response(respondent=user1, round=round3,
-                             time_submitted=datetime.now())
 
         # add 10 cards
         colors = ['red', 'blue', 'green', 'yellow',
@@ -114,13 +107,10 @@ def fill_db():
         db.session.add(user1)
         db.session.add(user2)
         db.session.add(study1)
-        db.session.add(study2)
         db.session.add(round1)
         db.session.add(round2)
-        db.session.add(round3)
         db.session.add(round4)
         db.session.add(qset1)
-        db.session.add(response3)
         db.session.commit()
 
         # get all cards in qset1 join with Cards table

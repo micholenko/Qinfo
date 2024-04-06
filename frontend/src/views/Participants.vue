@@ -74,13 +74,13 @@ onMounted(() => {
 
 <template>
   <v-card
-    style="display: flex; justify-content: left; align-items: center; height: 85vh; margin: 15px"
+    style="display: flex; justify-content: left; align-items: center; height: 87vh; margin: 15px"
   >
     <div
       style="
         height: 100%;
-        width: 10%;
-        max-width: 200px;
+        width: 20%;
+        max-width: 250px;
         display: flex;
         flex-direction: column;
         justify-content: start;
@@ -89,7 +89,7 @@ onMounted(() => {
         margin-right: 20px;
       "
     >
-      <h2>Participants</h2>
+      <h2>Participants:</h2>
       <v-virtual-scroll :items="studyStore.participants" :item-height="40" width="100%">
         <template v-slot:default="{ item }">
           <v-list-item
@@ -110,14 +110,14 @@ onMounted(() => {
         justify-content: center;
         align-items: start;
         height: 100%;
-        width: 30%;
+        width: 25%;
       "
     >
       <h2>User consistency between rounds</h2>
       <div id="euclidean_distance" style="max-width: 400px; height: 100%"></div>
     </div>
     <!-- 30 and 70% of flex -->
-    <div style="display: flex; flex-direction: column; justify-content: center; align-items: start; height: 100%; width: 55%">
+    <div style="display: flex; flex-direction: column; justify-content: center; align-items: start; height: 100%; width: 50%">
       <h2>PCA Similariy Clustering</h2>
       <div id="pca" style="width: 100%; height: 100%"></div>
     </div>

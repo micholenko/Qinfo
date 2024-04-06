@@ -21,7 +21,7 @@ const studyStore = useStudyStore()
         </router-link>
       </v-toolbar-title>
       <v-spacer></v-spacer>
-      <div>
+      <!-- <div>
         <div v-if="userStore.user.name" style="display: flex; align-items: center">
           <p>{{ userStore.user.name }}</p>
           <v-btn text to="/login">Logout</v-btn>
@@ -30,7 +30,7 @@ const studyStore = useStudyStore()
           <v-btn text to="/login">Login</v-btn>
           <v-btn text to="/register">Register</v-btn>
         </div>
-      </div>
+      </div> -->
     </v-toolbar>
     <v-divider></v-divider>
     <v-toolbar height="40" v-if="studyStore.study.id">

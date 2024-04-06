@@ -63,13 +63,13 @@ onMounted(() => {
 
 <template>
   <v-card
-    style="display: flex; justify-content: left; align-items: center; height: 85vh; margin: 15px"
+    style="display: flex; justify-content: left; align-items: center; height: 87vh; margin: 15px"
   >
     <div
       style="
         height: 100%;
-        width: 10%;
-        max-width: 200px;
+        width: 20%;
+        max-width: 400px;
         display: flex;
         flex-direction: column;
         justify-content: start;
@@ -78,7 +78,7 @@ onMounted(() => {
         margin-right: 20px;
       "
     >
-      <h2>Cards</h2>
+      <h2>Cards:</h2>
       <v-virtual-scroll :items="studyStore.cards.cards" :item-height="40" width="100%">
         <template v-slot:default="{ item }">
           <v-list-item
@@ -99,7 +99,7 @@ onMounted(() => {
         justify-content: center;
         align-items: start;
         height: 100%;
-        width: 90%;
+        width: 80%;
       "
     >
       <h2>Mean and standard deviation of cards</h2>

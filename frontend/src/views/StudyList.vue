@@ -16,8 +16,9 @@ const headers = [
   { title: 'Title', key: 'title' },
   { title: 'Question', key: 'question'},
   { title: 'Created', key: 'created_time' },
-  { title: 'Submit Date', key: 'submit_time' },
-  { title: 'Status', key: 'status' }
+  { title: 'Rounds', key: 'rounds.count' },
+  { title: 'Participants', key: 'participants.count' },
+  { title: 'Cards', key: 'cards.count' },
 ]
 
 const sortBy = [
@@ -26,22 +27,6 @@ const sortBy = [
     order: 'desc'
   }
 ]
-
-const plotChart = () => {
-  Plotly.newPlot(
-    plotlyChart.value,
-    [
-      {
-        x: [1, 2, 3, 4],
-        y: [10, 11, 12, 13],
-        type: 'scatter'
-      }
-    ],
-    {
-      margin: { t: 0 }
-    }
-  )
-}
 
 const fetchData = async () => {
   try {
@@ -90,7 +75,13 @@ onMounted(() => {
           @click:row="onClick"
           @mouseover:row="mouseOver"
           @mouseout:row="mouseOut"
-        ></v-data-table>
+        >
+
+        <!-- format created time as only date -->
+        <template #item.created_time="{ item }">
+          {{ new Date(item.created_time).toLocaleDateString() }}
+        </template>
+      </v-data-table>
       </v-container>
     </v-sheet>
     <!-- show plot -->

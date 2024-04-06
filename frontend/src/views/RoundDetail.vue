@@ -18,13 +18,23 @@ onMounted(() => {
       console.log('data received:', corr_matrix)
       Plotly.newPlot('corr_matrix', corr_matrix)
     })
+  fetch(`http://localhost:5000/studies/${studyId}/rounds/${roundId}`)
+    .then((response) => response.json())
+    .then((data) => {
+      const round_scatter = data
+      console.log('data received:', round_scatter)
+      Plotly.newPlot('round_scatter', round_scatter)
+    })
 })
 </script>
 
 <template>
-  <v-card style="margin: 15px">
+  <v-card style="margin: 15px; padding-left: 15px; min-height: 87vh;">
     <h2>Round {{ roundId }}</h2>
-    <div id="corr_matrix" style="width: 100%; height: 100%"></div>
+    <div style="display: flex; justify-content: center; align-items: center; height: 700px">
+      <div id="corr_matrix" style="width: 50%; height: 100%"></div>
+      <div id="round_scatter" style="width: 50%; height: 100%"></div>
+    </div>
     <InteractiveAnalysis :parentElement="'round'"/>
   </v-card>
 </template>

@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import euclidean
 from itertools import combinations
+import plotly.graph_objects as go
 
 from app.helpers import get_card_matrix, get_user_rounds, get_all_data
 
@@ -42,6 +43,9 @@ def get_studies():
     studies = Study.query.all()
     studies_list = [{'id': study.id, 'title': study.title, 'question': study.question,
                      'description': study.description, 'created_time': study.created_time,
+                     'rounds': {'count': len(study.rounds), 'ids': [round.id for round in study.rounds]},
+                     'participants': {'count': len(study.users), 'ids': [user.id for user in study.users]},
+                     'cards': {'count': len(study.qset.cards), 'ids': [card.id for card in study.qset.cards]},
                      'status': study.status, 'qset_id': study.qset_id
                      }
                     for study in studies]
@@ -386,7 +390,8 @@ def get_user_card_stats(id):
     data = get_all_data(id)
     print(data)
     print(user_id)
-    data = data[data['participant'] == int(user_id)]
+    data = data[data['participant'] == int(user_id)
+    ]
     print(data)
 
     # calculate the mean and standard deviation of each card
@@ -535,19 +540,98 @@ def get_card_details(id, card_id):
         lambda x: db.session.get(Round, x).name)
 
 
+    fig1 = go.Figure()
+    fig1.add_trace(go.Box(y=card_data['position'], name='Average'))   
+    fig1.add_trace(go.Box(x=card_data['round'], y=card_data['position'], name='Per Round'))
+
+    fig1.update_layout(xaxis_title='Round', yaxis_title='Position')
+    fig1.update_yaxes(range=[col_values[0]-0.2, col_values[-1]+0.2])
+
+    fig1.update_layout(showlegend=False)
+
+
+    # create a scatter plot with mean and standard deviation for each participant
+    participant_stats = card_data.groupby('participant').agg(
+        {'position': ['mean', 'std']})
+    
+    participant_stats.columns = ['mean', 'std']
+    participant_stats = participant_stats.reset_index()
+    participant_stats['participant'] = [db.session.get(User, user_id).name for user_id in participant_stats['participant']]
+    print("Participant stats")
+    print(participant_stats)
+
+    # create a trace for each participant which has mean and std as x and y
+
+    fig2 = go.Figure()
+    for i, participant in enumerate(participant_stats['participant']):
+        fig2.add_trace(go.Scatter(x=[participant_stats['std'][i]], y=[participant_stats['mean'][i]], mode='markers', name=participant, marker=dict(size=12, opacity=0.8, color='#6666FF')))
+
+    # show overlapping points on hover
+    fig2.update_layout(hovermode='x', hoverdistance=1)
+    # fig2.update_traces(marker=dict(size=12, opacity=0.8))
+    fig2.update_xaxes(title='Standard Deviation')
+    fig2.update_yaxes(title='Mean Position')
+
+    fig2.update_layout(showlegend=False)
+    
+
+
+
+    return {'cardBoxPlot': json.loads(fig1.to_json()),
+            'cardScatterPlot': json.loads(fig2.to_json())}
+    
+    
+@studies_blueprint.route('/studies/<int:id>/rounds_stats', methods=['GET'])
+def get_rounds_stats(id):
+    # calculate correlation for each round, take the average of the correlation matrix
+    study = db.session.query(Study).filter_by(id=id).first()
+    rounds = study.rounds
+    averages = []
+    for round in rounds:
+        data = get_card_matrix(round, study)
+        users = study.users    
+        df = pd.DataFrame(data, columns=[user.name for user in users])
+        matrix = df.corr(method='pearson')
+        # get average of the correlation matrix
+        average = matrix.mean().mean()
+        averages.append(average)
     fig = go.Figure()
-    fig.add_trace(go.Box(y=card_data['position'], name='Average'))   
-    fig.add_trace(go.Box(x=card_data['round'], y=card_data['position'], name='Per Round'))
-
-    fig.update_layout(xaxis_title='Round', yaxis_title='Position')
-    fig.update_yaxes(range=[col_values[0]-0.2, col_values[-1]+0.2])
-
-
-    # add average aggregation for all rounds
-        
-
-
-
+    fig.add_trace(go.Scatter(x=[i+1 for i in range(len(averages))], y=averages, mode='markers'))
+    fig.update_layout(xaxis_title='Round', yaxis_title='Average Correlation')
     return json.loads(fig.to_json())
-    
-    
+
+
+@studies_blueprint.route('/studies/<int:id>/rounds/<int:round_id>', methods=['GET'])
+def get_round_details(id, round_id):
+    # get mean and std scatter plot for each card
+    study = db.session.query(Study).filter_by(id=id).first()
+    data = get_all_data(id)
+    round_data = data[data['round'] == round_id]
+
+    # calculate the mean and standard deviation of each card
+    card_stats = round_data.groupby('card').agg({'position': ['mean', 'std']})
+    card_stats.columns = ['mean', 'std']
+    card_stats = card_stats.reset_index()
+    # create a plot with the mean and standard deviation of each card
+
+    cards = db.session.query(Study).filter_by(id=id).first().qset.cards
+    card_stats['id'] = [card.id for card in cards]
+    card_stats['name'] = [card.text for card in cards]
+
+    fig = px.scatter(card_stats, x='std', y='mean',
+                     custom_data=['id', 'name'])
+
+    # set max x and y values
+    fig.update_xaxes(range=[-0.2, max(card_stats['std']) + 0.5])
+
+    col_values = json.loads(study.col_values)
+
+    fig.update_yaxes(range=[col_values[0]-0.2, col_values[-1]+0.2])
+    fig.update_traces(marker=dict(size=12, opacity=0.8))
+    fig.update_traces(
+        hovertemplate='''<b>%{customdata[1]}</b><br><b>Mean:</b> %{y}<br><b>Standard Deviation:</b> %{x}<br>Click to see details''')
+
+    fig.update_traces(textposition='top center')
+
+    return json.loads(fig.to_json())    
+
