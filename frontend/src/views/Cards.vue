@@ -4,6 +4,8 @@ import Plotly from 'plotly.js-dist'
 import { useRoute } from 'vue-router'
 import { useStudyStore } from '@/stores/study'
 import router from '@/router'
+import { fillStudyStore } from '@/helpers'
+
 
 const studyStore = useStudyStore()
 let studyId = useRoute().params.id
@@ -38,6 +40,9 @@ const mouseLeaveCard = () => {
 }
 
 onMounted(() => {
+  if (studyStore.study.id === null) {
+    fillStudyStore(studyId)
+  }
   fetch(`http://localhost:5000/studies/${studyId}/card_stats2`)
     .then((response) => response.json())
     .then((data) => {
@@ -55,7 +60,6 @@ onMounted(() => {
     .then((response) => response.json())
     .then((data) => {
       const cards = data
-      console.log('cards:', cards)
       Plotly.newPlot('cards-box', cards)
     })
 })

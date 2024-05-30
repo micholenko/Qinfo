@@ -3,7 +3,8 @@ from app.models import User, Study, Round, QSet, Response, Card, CardPosition, U
 from datetime import datetime
 import json
 import random
-
+from datetime import timedelta
+import names
 
 def fill_db():
     # Create some users
@@ -20,15 +21,16 @@ def fill_db():
                        status='not_started', question='What is your favorite color?',
                        distribution=json.dumps([1, 2, 3, 2, 1]),
                        col_values=json.dumps([-2, -1, 0, 1, 2]))
-        
+
         qset1 = QSet(title='QSet 1', description='This is a set of cards',
                      creator=user1, studies=[study1])
 
-
-        round1 = Round(study=study1, created_time=datetime.now(), name='Round 1')
-        round2 = Round(study=study1, created_time=datetime.now(), name='Round 2')
-        round4 = Round(study=study1, created_time=datetime.now(), name='Round 3')
-
+        round1 = Round(study=study1, created_time=datetime.now(), name='Round 1',
+                       start_time=datetime.now(), end_time=datetime.now()+timedelta(days=7))
+        round2 = Round(study=study1, created_time=datetime.now(), name='Round 2',
+                       start_time=datetime.now()+timedelta(days=7), end_time=datetime.now()+timedelta(days=14))
+        round4 = Round(study=study1, created_time=datetime.now(), name='Round 3',
+                       start_time=datetime.now()+timedelta(days=14), end_time=datetime.now()+timedelta(days=21))
 
         # add 10 cards
         colors = ['red', 'blue', 'green', 'yellow',
@@ -115,18 +117,17 @@ def fill_db():
 
         # get all cards in qset1 join with Cards table
 
-
         # create a study of 5 rounds with 40 users, with distribution: [1,2,3,4,5,6,7,6,5,4,3,2,1] total cards being 47
         # each user has a response in each round
 
         study3 = Study(title='Study 3', description='This is a study', created_time=datetime.now(),
-                          status='not_started', question='What is your favorite color?',
-                          distribution=json.dumps([1, 2, 3, 4, 5, 6, 7, 6, 5, 4, 3, 2, 1]),
-                          col_values=json.dumps([-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6]))
-        
+                       status='not_started', question='What is your favorite color?',
+                       distribution=json.dumps(
+                           [1, 2, 3, 4, 5, 6, 7, 6, 5, 4, 3, 2, 1]),
+                       col_values=json.dumps([-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6]))
+
         qset2 = QSet(title='QSet 2', description='This is a set of cards',
-                        creator=user1, studies=[study3])
-        
+                     creator=user1, studies=[study3])
 
         # create all possible positions from distribution
 
@@ -135,26 +136,23 @@ def fill_db():
             for j in range(height):
                 positions.append((index, j))
 
-
-        round5 = Round(study=study3, created_time=datetime.now(), name='Round 1')
-        round6 = Round(study=study3, created_time=datetime.now(), name='Round 2')
-        round7 = Round(study=study3, created_time=datetime.now(), name='Round 3')
-        round8 = Round(study=study3, created_time=datetime.now(), name='Round 4')
-        round9 = Round(study=study3, created_time=datetime.now(), name='Round 5')
+        # rewrite above as for loop
+        for i in range(5):
+            round = Round(study=study3, created_time=datetime.now(), name='Round '+str(i+1),
+                          start_time=datetime.now()+timedelta(days=i*365),
+                          end_time=datetime.now()+timedelta(days=i*365+7)
+                          )
+            db.session.add(round)
 
         db.session.add(study3)
         db.session.add(qset2)
-        db.session.add(round5)
-        db.session.add(round6)
-        db.session.add(round7)
-        db.session.add(round8)
-        db.session.add(round9)
         db.session.commit()
 
         cards = []
-        
+
         for i in range(49):
-            card = Card(text='Lorem ipsum dolor sit amet, consectetur adipiscing elit'+str(i), creator=user1, qset=qset2)
+            card = Card(text='Lorem ipsum dolor sit amet, consectetur adipiscing elit' +
+                        str(i), creator=user1, qset=qset2)
             cards.append(card)
             db.session.add(card)
 
@@ -173,7 +171,7 @@ def fill_db():
             for i, user in enumerate(users):
                 response = Response(respondent=user, round=round,
                                     time_submitted=datetime.now())
-                
+
                 db.session.add(response)
                 positions_tmp = positions.copy()
 
@@ -186,7 +184,73 @@ def fill_db():
 
         db.session.commit()
 
+        # next study
 
+        study_random = Study(title='Study 3', description='This is a study', created_time=datetime.now(),
+                             status='not_started', question='What is your favorite color?',
+                             distribution=json.dumps(
+            [1, 2, 3, 4, 5, 6, 7, 6, 5, 4, 3, 2, 1]),
+            col_values=json.dumps([-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6]))
+
+        qset_random = QSet(title='QSet 2', description='This is a set of cards',
+                     creator=user1, studies=[study_random])
+
+        # create all possible positions from distribution
+
+        positions = []
+        for index, height in enumerate(json.loads(study_random.distribution)):
+            for j in range(height):
+                positions.append((index, j))
+
+        # rewrite above as for loop
+        for i in range(2):
+            round = Round(study=study_random, created_time=datetime.now(), name='Round '+str(i+1),
+                          start_time=datetime.now()+timedelta(days=i*365),
+                          end_time=datetime.now()+timedelta(days=i*365+7)
+                          )
+            db.session.add(round)
+
+        db.session.add(study_random)
+        db.session.add(qset_random)
+        db.session.commit()
+
+        cards = []
+
+        for i in range(49):
+            card = Card(text='Card: ' + str(i) + ': Lorem ipsum dolor sit amet, consectetur adipiscing elit',
+                        creator=user1, qset=qset_random)
+            cards.append(card)
+            db.session.add(card)
+
+        users = []
+        for i in range(20):
+            # generate a random name
+            name = names.get_full_name()
+            user = User(name=name, email='mail'+str(i)+'@example.com',
+                        role='participant', password='password')
+            db.session.add(user)
+            db.session.commit()
+            association = UserStudyAssociation(
+                user_id=user.id, study_id=study_random.id, role='participant')
+            db.session.add(association)
+            users.append(user)
+
+        for round in study_random.rounds:
+            for i, user in enumerate(users):
+                response = Response(respondent=user, round=round,
+                                    time_submitted=datetime.now())
+
+                db.session.add(response)
+                positions_tmp = positions.copy()
+
+                for j in range(len(cards)):
+                    rand = random.randint(0, len(positions_tmp)-1)
+                    position = CardPosition(
+                        card=cards[j], response=response, column=positions_tmp[rand][0], row=positions_tmp[rand][1])
+                    db.session.add(position)
+                    positions_tmp.pop(rand)
+
+        db.session.commit()
 
 
 if __name__ == "__main__":

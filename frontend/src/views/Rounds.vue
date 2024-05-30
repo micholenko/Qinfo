@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStudyStore } from '@/stores/study'
 import Plotly from 'plotly.js-dist'
+import { fillStudyStore } from '@/helpers'
 
 
 const studyStore = useStudyStore()
@@ -11,6 +12,9 @@ let studyId = useRoute().params.id
 console.log(studyStore)
 
 onMounted(() => {
+  if (studyStore.study.id === null) {
+    fillStudyStore(studyId)
+  }
   fetch(`http://localhost:5000/studies/${studyId}/rounds_stats`)
     .then((response) => response.json())
     .then((data) => {
@@ -29,13 +33,13 @@ onMounted(() => {
       <div>
       
         <h2>Rounds:</h2>
-        <v-virtual-scroll :items="studyStore.rounds" :item-height="40" width="100%">
+        <v-virtual-scroll :items="studyStore.rounds.rounds" :item-height="40" width="100%">
           <template v-slot:default="{ item }">
             <v-list-item
-            :key="item  "
-            :to="`/study/${studyId}/rounds/${item}`"
+            :key="item.id"
+            :to="`/study/${studyId}/rounds/${item.id}`"
             >
-            Round {{ item}}
+            {{item.name}}
           </v-list-item>
         </template>
       </v-virtual-scroll>

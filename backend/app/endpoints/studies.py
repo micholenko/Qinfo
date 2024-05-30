@@ -55,10 +55,11 @@ def get_studies():
 @studies_blueprint.route('/studies/<int:id>', methods=['GET'])
 def get_study(id):
     study = db.session.get(Study, id)
+    rounds = study.rounds
     return jsonify({'id': study.id, 'title': study.title, 'question': study.question,
                     'description': study.description, 'created_time': study.created_time,
                     'status': study.status, 'qset_id': study.qset_id,
-                    'rounds': {'count': len(study.rounds), 'ids': [round.id for round in study.rounds]},
+                    'rounds': {'count': len(study.rounds), 'rounds': [{'id': round.id, 'name': round.name, 'start_time': round.start_time, 'end_time': round.end_time} for round in rounds]},
                     'distribution': json.loads(study.distribution) if study.distribution else None,
                     'col_values': json.loads(study.col_values) if study.col_values else None
                     })
@@ -203,15 +204,12 @@ def get_study_users(id):
         lambda x: db.session.get(User, x).name)
 
     # jitter principal components
-    principal_df['PC1'] = principal_df['PC1'] + \
-        np.random.normal(0, 0.1, len(principal_df))
-    principal_df['PC2'] = principal_df['PC2'] + \
-        np.random.normal(0, 0.1, len(principal_df))
-    principal_df['PC3'] = principal_df['PC3'] + \
-        np.random.normal(0, 0.1, len(principal_df))
-
-    
-
+    # principal_df['PC1'] = principal_df['PC1'] + \
+    #     np.random.normal(0, 0.1, len(principal_df))
+    # principal_df['PC2'] = principal_df['PC2'] + \
+    #     np.random.normal(0, 0.1, len(principal_df))
+    # principal_df['PC3'] = principal_df['PC3'] + \
+    #     np.random.normal(0, 0.1, len(principal_df))
 
     fig = px.scatter_3d(principal_df, x='PC1', y='PC2',
                         z='PC3', size_max=18, opacity=0.7,
@@ -298,15 +296,11 @@ def get_average_euclidean_distance(id):
     average_distances['user_names'] = [user.name for user in users]
     average_distances['pos'] = 1
 
-
-    # jitter pos 
+    # jitter pos
     average_distances['pos'] = average_distances['pos'] + \
         np.random.normal(0, 0.05, len(average_distances))
 
-
     # add name column, lookup user by id
-
-
 
     fig2 = px.scatter(average_distances, x='pos', y='distance',
                       hover_name='user_names',
@@ -339,7 +333,8 @@ def get_average_euclidean_distance(id):
                         font=dict(size=16, color='black'))
     # show y axis from 0 to max distance
     max_distance = max(average_distances['distance'])
-    fig2.update_yaxes(range=[ -0.05 if max_distance < 1 else -0.5, max_distance + 0.5])
+    fig2.update_yaxes(range=[-0.05 if max_distance <
+                      1 else -0.5, max_distance + 0.5])
     # remove the colorbar
     fig2.update_layout(coloraxis_showscale=False)
 
@@ -382,6 +377,7 @@ def get_user_details(id):
 
     return json.loads(fig.to_json())
 
+
 @studies_blueprint.route('/studies/<int:id>/user_card_stats', methods=['GET'])
 def get_user_card_stats(id):
     user_id = request.args.get('user_id')
@@ -391,7 +387,7 @@ def get_user_card_stats(id):
     print(data)
     print(user_id)
     data = data[data['participant'] == int(user_id)
-    ]
+                ]
     print(data)
 
     # calculate the mean and standard deviation of each card
@@ -407,8 +403,8 @@ def get_user_card_stats(id):
     print(card_stats)
 
     fig = px.scatter(card_stats, x='std', y='mean',
-                        custom_data=['id', 'name'])
-    
+                     custom_data=['id', 'name'])
+
     # set max x and y values
     fig.update_xaxes(range=[-0.2, max(card_stats['std']) + 0.5])
 
@@ -418,14 +414,10 @@ def get_user_card_stats(id):
     fig.update_traces(marker=dict(size=12, opacity=0.8))
     fig.update_traces(
         hovertemplate='''<b>%{customdata[1]}</b><br><b>Mean:</b> %{y}<br><b>Standard Deviation:</b> %{x}<br>Click to see details''')
-    
+
     fig.update_traces(textposition='top center')
 
     return json.loads(fig.to_json())
-
-    
-
-
 
 
 @studies_blueprint.route('/studies/<int:id>/card_stats2', methods=['GET'])
@@ -539,24 +531,24 @@ def get_card_details(id, card_id):
     card_data['round'] = card_data['round'].apply(
         lambda x: db.session.get(Round, x).name)
 
-
     fig1 = go.Figure()
-    fig1.add_trace(go.Box(y=card_data['position'], name='Average'))   
-    fig1.add_trace(go.Box(x=card_data['round'], y=card_data['position'], name='Per Round'))
+    fig1.add_trace(go.Box(y=card_data['position'], name='Average'))
+    fig1.add_trace(
+        go.Box(x=card_data['round'], y=card_data['position'], name='Per Round'))
 
     fig1.update_layout(xaxis_title='Round', yaxis_title='Position')
     fig1.update_yaxes(range=[col_values[0]-0.2, col_values[-1]+0.2])
 
     fig1.update_layout(showlegend=False)
 
-
     # create a scatter plot with mean and standard deviation for each participant
     participant_stats = card_data.groupby('participant').agg(
         {'position': ['mean', 'std']})
-    
+
     participant_stats.columns = ['mean', 'std']
     participant_stats = participant_stats.reset_index()
-    participant_stats['participant'] = [db.session.get(User, user_id).name for user_id in participant_stats['participant']]
+    participant_stats['participant'] = [db.session.get(
+        User, user_id).name for user_id in participant_stats['participant']]
     print("Participant stats")
     print(participant_stats)
 
@@ -564,7 +556,8 @@ def get_card_details(id, card_id):
 
     fig2 = go.Figure()
     for i, participant in enumerate(participant_stats['participant']):
-        fig2.add_trace(go.Scatter(x=[participant_stats['std'][i]], y=[participant_stats['mean'][i]], mode='markers', name=participant, marker=dict(size=12, opacity=0.8, color='#6666FF')))
+        fig2.add_trace(go.Scatter(x=[participant_stats['std'][i]], y=[participant_stats['mean'][i]],
+                       mode='markers', name=participant, marker=dict(size=12, opacity=0.8, color='#6666FF')))
 
     # show overlapping points on hover
     fig2.update_layout(hovermode='x', hoverdistance=1)
@@ -573,14 +566,11 @@ def get_card_details(id, card_id):
     fig2.update_yaxes(title='Mean Position')
 
     fig2.update_layout(showlegend=False)
-    
-
-
 
     return {'cardBoxPlot': json.loads(fig1.to_json()),
             'cardScatterPlot': json.loads(fig2.to_json())}
-    
-    
+
+
 @studies_blueprint.route('/studies/<int:id>/rounds_stats', methods=['GET'])
 def get_rounds_stats(id):
     # calculate correlation for each round, take the average of the correlation matrix
@@ -589,14 +579,15 @@ def get_rounds_stats(id):
     averages = []
     for round in rounds:
         data = get_card_matrix(round, study)
-        users = study.users    
+        users = study.users
         df = pd.DataFrame(data, columns=[user.name for user in users])
         matrix = df.corr(method='pearson')
         # get average of the correlation matrix
         average = matrix.mean().mean()
         averages.append(average)
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=[i+1 for i in range(len(averages))], y=averages, mode='markers'))
+    fig.add_trace(go.Scatter(
+        x=[i+1 for i in range(len(averages))], y=averages, mode='markers'))
     fig.update_layout(xaxis_title='Round', yaxis_title='Average Correlation')
     return json.loads(fig.to_json())
 
@@ -633,5 +624,4 @@ def get_round_details(id, round_id):
 
     fig.update_traces(textposition='top center')
 
-    return json.loads(fig.to_json())    
-
+    return json.loads(fig.to_json())

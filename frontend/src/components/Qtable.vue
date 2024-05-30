@@ -19,7 +19,7 @@ const drawQTable = () => {
   const columnsCount = props.qsort.length
 
   const width = maxWidth < columnsCount * 200 ? maxWidth : columnsCount * 200
-  const height = maxColumnHeight * 130
+  const height = maxColumnHeight * (props.id === 'empty-qtable' ? 50 : 130)
 
   console.log('parentWidth', width)
 
@@ -41,7 +41,7 @@ const drawQTable = () => {
     .enter()
     .append('g')
     .attr('transform', (d, i) => `translate(${xScale(i)}, 0)`)
-    .attr('fill', (d, i) => d3.interpolateRgbBasis(["red", "white", "green"])(i / props.distribution.length))
+    .attr('fill', (d, i) => d3.interpolateRgbBasis(["lightcoral", "white", "lightgreen"])(i / props.distribution.length))
     .attr('stroke', 'black')
     .attr('stroke-width', 1)
 

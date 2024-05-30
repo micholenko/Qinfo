@@ -500,7 +500,9 @@ onMounted(() => {
     <v-select
       v-if="props.parentElement !== 'round'"
       v-model="selectedRound"
-      :items="store.rounds"
+      :items="store.rounds.rounds"
+      item-title="name"
+      item-value="id"
       label="Round"
       variant="outlined"
       density="comfortable"

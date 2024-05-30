@@ -5,13 +5,19 @@ import { useStudyStore } from '@/stores/study'
 import Stats from '@/components/Stats.vue'
 import Plotly from 'plotly.js-dist'
 import InteractiveAnalysis from '@/components/InteractiveAnalysis.vue'
+import { fillStudyStore } from '@/helpers'
 
 const studyStore = useStudyStore()
 let studyId = useRoute().params.id
 const cardId = useRoute().params.cardId
-const cardName = studyStore.cards.cards.find((c) => c.id == cardId).text
 
-onMounted(() => {
+const cardName = ref('') 
+
+onMounted(async () => {
+  if (studyStore.study.id === null) {
+    await fillStudyStore(studyId)
+  }
+  cardName.value = studyStore.cards.cards.find((c) => c.id == cardId).text
   fetch(`http://localhost:5000/studies/${studyId}/cards/${cardId}`)
     .then((response) => response.json())
     .then((data) => {

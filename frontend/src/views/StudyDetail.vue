@@ -51,7 +51,7 @@ const fetchData = async () => {
   const data = await ret.json()
   studyData.value = data
   console.log('studyData:', studyData.value)
-  selectedRound.value = data.rounds.ids[0]
+  selectedRound.value = data.rounds.rounds[0].id
   studyStore.distribution = data.distribution
   studyStore.positions = data.col_values
   studyStore.rounds = data.rounds.ids

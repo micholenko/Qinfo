@@ -4,20 +4,17 @@ import Plotly from 'plotly.js-dist'
 import { useRoute } from 'vue-router'
 import { useStudyStore } from '@/stores/study'
 import router from '@/router'
+import { fillStudyStore } from '@/helpers'
+
+
 
 const studyStore = useStudyStore()
 let studyId = useRoute().params.id
+const loading = ref(true)
 
 let eucDistPlot = null
 let pcaPlot = null
 
-const highlightUser = {
-  mode: 'markers',
-  marker: {
-    size: 40,
-    color: 'rgba(255, 182, 193, .9)'
-  }
-}
 
 const mouseOverUser = (userId) => {
   const pointIndex = eucDistPlot.data[0].customdata.findIndex((id) => id[0] === userId)
@@ -45,6 +42,9 @@ const mouseLeaveUser = () => {
 }
 
 onMounted(() => {
+  if (studyStore.study.id === null) {
+    fillStudyStore(studyId)
+  }
   fetch(`http://localhost:5000/studies/${studyId}/average_euclidean_distance`)
     .then((response) => response.json())
     .then((data) => {
@@ -73,6 +73,7 @@ onMounted(() => {
 </script>
 
 <template>
+  
   <v-card
     style="display: flex; justify-content: left; align-items: center; height: 87vh; margin: 15px"
   >
